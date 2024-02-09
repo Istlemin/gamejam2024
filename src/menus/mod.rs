@@ -66,7 +66,7 @@ fn setup_main_menu(
     asset_server: Res<AssetServer>,
     materials: Res<MenuMaterials>,
 ) {
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     commands
         .spawn_bundle(root(&materials))
@@ -109,7 +109,7 @@ fn setup_game_over_menu(
     asset_server: Res<AssetServer>,
     materials: Res<MenuMaterials>,
 ) {
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     commands
         .spawn_bundle(root(&materials))
@@ -151,7 +151,7 @@ fn setup_level_success_menu(
     asset_server: Res<AssetServer>,
     materials: Res<MenuMaterials>,
 ) {
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     commands
         .spawn_bundle(root(&materials))
