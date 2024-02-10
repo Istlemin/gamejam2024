@@ -10,6 +10,7 @@ use bevy_rapier2d::geometry::Collider;
 #[derive(Debug)]
 pub struct Polygon {
     vertices: Vec<Point>,
+    texture_coords: Vec<Point>,
 }
 
 fn signed_area(vertices: &Vec<Point>) -> f32 {
@@ -26,13 +27,19 @@ fn signed_area(vertices: &Vec<Point>) -> f32 {
 }
 
 impl Polygon {
-    pub fn new(vertices: Vec<Point>) -> Polygon {
+    pub fn new(vertices: Vec<Point>, texture_coords: Option<Vec<Point>>) -> Polygon {
+        let mut new_texture_coords = texture_coords.unwrap_or_else(|| vertices.clone());
+
+        let new_verts = if signed_area(&vertices) >= 0.0 {
+            vertices
+        } else {
+            new_texture_coords.reverse();
+            vertices.into_iter().rev().collect()
+        };
+
         Polygon {
-            vertices: if signed_area(&vertices) >= 0.0 {
-                vertices
-            } else {
-                vertices.into_iter().rev().collect()
-            },
+            vertices: new_verts,
+            texture_coords: new_texture_coords,
         }
     }
 
@@ -56,7 +63,9 @@ impl Reflectable for Polygon {
                 .vertices
                 .iter()
                 .map(|x: &Point| x.reflect_over_line(line))
+                .rev()
                 .collect(),
+            texture_coords: self.texture_coords.clone().into_iter().rev().collect(),
         }
     }
 
@@ -66,9 +75,24 @@ impl Reflectable for Polygon {
                 .vertices
                 .iter()
                 .map(|x: &Point| x.reflect_over_point(origin))
+                .rev()
                 .collect(),
+            texture_coords: self.texture_coords.clone().into_iter().rev().collect(),
         }
     }
+}
+
+fn interpolate(
+    last_p: Point,
+    last_texture: Point,
+    next_p: Point,
+    next_texture: Point,
+    p: Point,
+) -> Point {
+    let s = (p - last_p).length();
+    let t = (p - next_p).length();
+
+    (last_texture * t + next_texture * s) / (s + t)
 }
 
 impl Croppable for Polygon {
@@ -77,6 +101,7 @@ impl Croppable for Polygon {
             .find(|index: &usize| line.is_on_side(self.vertices[*index], side))?;
 
         let mut new_vertices = vec![self.vertices[start]];
+        let mut new_texture_coords = vec![self.texture_coords[start]];
         let n = self.vertices.len();
 
         for i in start + 1..start + n + 1 {
@@ -92,10 +117,18 @@ impl Croppable for Polygon {
                     if (intersection - *new_vertices.last().unwrap()).length() > EPS
                         && (intersection - self.vertices[nx]).length() > EPS
                     {
+                        new_texture_coords.push(interpolate(
+                            self.vertices[last],
+                            self.texture_coords[last],
+                            self.vertices[nx],
+                            self.texture_coords[nx],
+                            intersection,
+                        ));
                         new_vertices.push(intersection);
                     }
                 }
                 new_vertices.push(self.vertices[nx]);
+                new_texture_coords.push(self.texture_coords[nx])
             } else {
                 if line.is_on_side(self.vertices[last], side) {
                     let intersection = line
@@ -103,6 +136,13 @@ impl Croppable for Polygon {
                         .expect("Expected intersection, but no intersection has been found");
 
                     if (intersection - *new_vertices.last().unwrap()).length() > EPS {
+                        new_texture_coords.push(interpolate(
+                            self.vertices[last],
+                            self.texture_coords[last],
+                            self.vertices[nx],
+                            self.texture_coords[nx],
+                            intersection,
+                        ));
                         new_vertices.push(intersection);
                     }
                 }
@@ -112,22 +152,8 @@ impl Croppable for Polygon {
 
         Some(Polygon {
             vertices: new_vertices,
+            texture_coords: new_texture_coords,
         })
-    }
-}
-
-impl Polygon {
-    pub fn reflect_over_line_segment(&self, seg: LineSegment) -> Option<Polygon> {
-        let (a, b) = seg.endpoints();
-        let mirror_line = seg.get_line();
-        let border_a = mirror_line.perpendicular_through(a);
-        let border_b = mirror_line.perpendicular_through(b);
-
-        Some(
-            self.crop_to_halfplane(border_a, border_a.side(b))?
-                .crop_to_halfplane(border_b, border_b.side(a))?
-                .reflect_over_line(mirror_line),
-        )
     }
 }
 
