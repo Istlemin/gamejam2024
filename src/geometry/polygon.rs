@@ -7,7 +7,7 @@ use bevy::{
 };
 use bevy_rapier2d::geometry::Collider;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Polygon {
     vertices: Vec<Point>,
     texture_coords: Vec<Point>,

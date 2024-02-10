@@ -42,11 +42,11 @@ pub fn spawn_polygon(
             material: materials.floor_material.clone_weak(),
             ..default()
         },
-        Collider::from(polygon),
+        Collider::from(polygon.clone()),
         RigidBody::Fixed,
         ActiveEvents::COLLISION_EVENTS,
-        Platform,
         DespawnOnRestart {},
+        Platform::new(polygon),
     ));
 }
 

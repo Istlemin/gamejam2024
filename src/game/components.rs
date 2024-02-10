@@ -1,6 +1,8 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use bevy::prelude::*;
+
+use crate::geometry::Polygon;
 
 #[derive(Resource)]
 pub struct Materials {
@@ -31,7 +33,25 @@ pub struct Player {
 pub struct Bullet {}
 
 #[derive(Component)]
-pub struct Platform;
+pub struct DespawnOnRestart {}
 
 #[derive(Component)]
-pub struct DespawnOnRestart {}
+pub struct Platform {
+    polygon: Polygon,
+}
+
+impl Platform {
+    pub fn get_transformed_polygon(&self, transform: &Transform) -> Polygon {
+        Polygon::new(
+            self.polygon
+                .vertices()
+                .iter()
+                .map(|pt| transform.transform_point(pt.extend(0.0)).xy())
+                .collect(),
+        )
+    }
+
+    pub fn new(polygon: Polygon) -> Self {
+        Self { polygon }
+    }
+}
