@@ -127,6 +127,19 @@ impl LineSegment {
     pub fn endpoints(self) -> (Point, Point) {
         (self.start, self.end)
     }
+
+    pub fn strip_boundaries(self) -> (Line, Line) {
+        let line = self.get_line();
+        (
+            line.perpendicular_through(self.start),
+            line.perpendicular_through(self.end),
+        )
+    }
+
+    pub fn on_strip(self, p: Point) -> bool {
+        let (b_a, b_b) = self.strip_boundaries();
+        b_a.is_on_side(p, b_a.side(self.end)) & b_b.is_on_side(p, b_b.side(self.start))
+    }
 }
 
 impl Reflectable for LineSegment {
