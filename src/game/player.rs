@@ -102,10 +102,10 @@ pub fn player_shoot(
 
         match player.facing_direction {
             GameDirection::Left => {
-                bullet_pos = Vec2::new(transform.translation.x - 2.0, transform.translation.y);
+                bullet_pos = Vec2::new(transform.translation.x - 0.7, transform.translation.y);
             }
             GameDirection::Right => {
-                bullet_pos = Vec2::new(transform.translation.x + 2.0, transform.translation.y);
+                bullet_pos = Vec2::new(transform.translation.x + 0.7, transform.translation.y);
             }
         }
 

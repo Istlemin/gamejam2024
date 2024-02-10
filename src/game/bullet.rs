@@ -53,7 +53,7 @@ pub fn spawn_bullet(
                 SpriteBundle {
                     sprite: Sprite {
                         color: materials.bullet_material.into(),
-                        custom_size: Vec2::new(1.0, 0.1).into(),
+                        custom_size: Vec2::new(0.4, 0.06).into(),
                         ..Default::default()
                     },
                     transform: Transform::from_translation(Vec3::new(position.x, position.y, 0.)),
@@ -62,7 +62,7 @@ pub fn spawn_bullet(
                 RigidBody::KinematicVelocityBased,
                 //LockedAxes::ROTATION_LOCKED,
                 //GravityScale(0.0),
-                Collider::cuboid(0.5, 0.5),
+                Collider::cuboid(0.02, 0.03),
                 ActiveEvents::COLLISION_EVENTS,
                 Bullet {},
                 Velocity {
@@ -104,7 +104,6 @@ pub fn check_player_hit(
         if let CollisionEvent::Started(h1, h2, _) = contact_event {
             // let player_result1 = players.get_mut(*h1);
             // let player_result2 = players.get_mut(*h2);
-            debug!("Collision! {:?}", contact_event);
             if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
                 if let Ok((bullet_entity, bullet)) = bullets.get(*h1).or(bullets.get(*h2)) {
                     player_hit(&mut commands, player_entity, bullet_entity);
