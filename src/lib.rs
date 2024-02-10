@@ -1,8 +1,19 @@
 use bevy::{prelude::*, window::PresentMode, window::WindowMode};
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::wasm_bindgen;
+// use wasm_bindgen::prelude::*;
 
 mod game;
+mod menu;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, States)]
+pub enum AppState {
+    #[default]
+    MainMenu,
+    InGame
+}
+
 use game::GamePlugin;
+use menu::MenuPlugin;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -19,6 +30,6 @@ pub fn run() {
         ..default()
     }))
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
-    .add_plugins(GamePlugin)
+    .add_plugins((GamePlugin, MenuPlugin))
     .run();
 }
