@@ -7,7 +7,7 @@ pub struct Materials {
     pub bullet_material: Color,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,PartialEq)]
 pub enum GameDirection {
     Left,
     Right,
@@ -22,6 +22,10 @@ pub struct Player {
     pub is_jumping: bool,
     pub id:i32,
 }
+
+
+#[derive(Component)]
+pub struct Bullet {}
 
 #[derive(Component)]
 pub struct Platform;

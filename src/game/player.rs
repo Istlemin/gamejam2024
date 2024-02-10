@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{GameDirection, Materials, Player};
+use super::{BulletFiredEvent, GameDirection, Materials, Player};
 
 pub struct PlayerPlugin;
 
@@ -84,11 +84,22 @@ pub fn player_jump(player : &mut Player, velocity : &mut Velocity){
     }
 }
 
+pub fn player_shoot(player : &mut Player, transform : &mut Transform,send_fire_event: &mut EventWriter<BulletFiredEvent>){
+    let bullet_pos = Vec2::new(transform.translation.x,transform.translation.y);
+
+    let event = BulletFiredEvent {
+        position: Vec2::new(transform.translation.x, transform.translation.y),
+        direction: player.facing_direction,
+    };
+    send_fire_event.send(event);
+}
+
 pub fn player_controller(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut Player, &mut Velocity)>,
+    mut send_fire_event: EventWriter<BulletFiredEvent>,
+    mut players: Query<(&mut Player, &mut Velocity, &mut Transform)>,
 ) {
-    for (mut player, mut velocity) in players.iter_mut() {
+    for (mut player, mut velocity, mut transform) in players.iter_mut() {
         if player.id == 0{
             if keyboard_input.pressed(KeyCode::Left) {
                 player_go_left(&mut player, &mut velocity);
@@ -98,6 +109,9 @@ pub fn player_controller(
             }
             if keyboard_input.pressed(KeyCode::Up) {
                 player_jump(&mut player, &mut velocity);           
+            }
+            if keyboard_input.pressed(KeyCode::Space) {
+                player_shoot(&mut player, &mut transform, &mut send_fire_event);           
             }
         }
         if player.id == 1{

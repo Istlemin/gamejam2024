@@ -10,6 +10,9 @@ use player::*;
 mod map;
 use map::*;
 
+mod bullet;
+use bullet::*;
+
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -20,6 +23,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             .add_plugins(MapPlugin)
+            .add_plugins(BulletPlugin)
             .add_plugins(PlayerPlugin)
             .add_systems(PreStartup, setup);
     }
