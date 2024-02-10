@@ -13,6 +13,9 @@ use map::*;
 mod bullet;
 use bullet::*;
 
+mod reflection;
+use reflection::*;
+
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
@@ -26,6 +29,7 @@ impl Plugin for GamePlugin {
             .add_plugins(MapPlugin)
             .add_plugins(BulletPlugin)
             .add_plugins(PlayerPlugin)
+            .add_plugins(ReflectionPlugin)
             .add_systems(PreStartup, setup)
             .add_systems(OnExit(AppState::InGame), cleanup);
     }
