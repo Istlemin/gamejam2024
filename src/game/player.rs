@@ -137,7 +137,7 @@ pub fn player_controller(
             if keyboard_input.pressed(KeyCode::Up) {
                 player_jump(&mut player, &mut velocity);
             }
-            if keyboard_input.pressed(KeyCode::Space) {
+            if keyboard_input.pressed(KeyCode::ControlRight) {
                 player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
             }
         }
@@ -150,6 +150,9 @@ pub fn player_controller(
             }
             if keyboard_input.pressed(KeyCode::W) {
                 player_jump(&mut player, &mut velocity);
+            }
+            if keyboard_input.pressed(KeyCode::Space) {
+                player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
             }
         }
 
