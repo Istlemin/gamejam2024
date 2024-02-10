@@ -1,7 +1,7 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_rapier2d::prelude::*;
 
-use crate::AppState;
+use crate::{geometry::Polygon, AppState};
 
 use super::{Materials, Platform};
 
@@ -13,27 +13,53 @@ impl Plugin for MapPlugin {
     }
 }
 
-pub fn spawn_floor(mut commands: Commands, materials: Res<Materials>) {
-    spawn_platform(Vec2::new(0.0,0.0), &mut commands, &materials);
-    spawn_platform(Vec2::new(15.0,5.0), &mut commands, &materials);
-    spawn_platform(Vec2::new(15.0,-5.0), &mut commands, &materials);
+pub fn spawn_floor(
+    mut commands: Commands,
+    materials: Res<Materials>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    spawn_platform(Vec2::new(0.0, 0.0), &mut commands, &materials, &mut meshes);
+    spawn_platform(Vec2::new(15.0, 5.0), &mut commands, &materials, &mut meshes);
+    spawn_platform(
+        Vec2::new(15.0, -5.0),
+        &mut commands,
+        &materials,
+        &mut meshes,
+    );
 }
 
-pub fn spawn_platform(location: Vec2, commands: &mut  Commands, materials: &Res<Materials>) {
+pub fn spawn_polygon(
+    location: Vec2,
+    polygon: Polygon,
+    commands: &mut Commands,
+    materials: &Res<Materials>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+) {
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: materials.floor_material.clone(),
-                custom_size: Vec2::new(10.0, 1.0).into(),
-                ..Default::default()
-            },
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Mesh::from(&polygon)).into(),
             transform: Transform::from_translation(Vec3::new(location.x, location.y, 0.)),
-            ..Default::default()
+            material: materials.floor_material.clone_weak(),
+            ..default()
         },
+        Collider::from(polygon),
         RigidBody::Fixed,
         ActiveEvents::COLLISION_EVENTS,
-        Collider::cuboid(5.0, 0.5),
-        Platform
+        Platform,
     ));
 }
 
+pub fn spawn_platform(
+    location: Vec2,
+    commands: &mut Commands,
+    materials: &Res<Materials>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+) {
+    let poly = Polygon::new(vec![
+        Vec2::new(-5., -0.5),
+        Vec2::new(5., -0.5),
+        Vec2::new(5., 0.5),
+        Vec2::new(-5., 0.5),
+    ]);
+    spawn_polygon(location, poly, commands, materials, meshes);
+}

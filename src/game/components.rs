@@ -3,11 +3,11 @@ use bevy::prelude::*;
 #[derive(Resource)]
 pub struct Materials {
     pub player_material: Color,
-    pub floor_material: Color,
+    pub floor_material: Handle<ColorMaterial>,
     pub bullet_material: Color,
 }
 
-#[derive(Copy, Clone,PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GameDirection {
     Left,
     Right,
@@ -20,9 +20,8 @@ pub struct Player {
     pub facing_direction: GameDirection,
     pub jump_impulse: f32,
     pub is_jumping: bool,
-    pub id:i32,
+    pub id: i32,
 }
-
 
 #[derive(Component)]
 pub struct Bullet {}

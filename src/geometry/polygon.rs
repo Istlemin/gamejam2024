@@ -1,5 +1,11 @@
 use super::utils::{cross, EPS};
-use super::{Croppable, Line, LineSegment, Point, Reflectable};
+use super::Point;
+use super::{Croppable, Line, LineSegment, Reflectable};
+use bevy::{
+    prelude::*,
+    render::{mesh::Indices, render_resource::PrimitiveTopology},
+};
+use bevy_rapier2d::geometry::Collider;
 
 #[derive(Debug)]
 pub struct Polygon {
@@ -121,6 +127,51 @@ impl Polygon {
             self.crop_to_halfplane(border_a, border_a.side(b))?
                 .crop_to_halfplane(border_b, border_b.side(a))?
                 .reflect_over_line(mirror_line),
+        )
+    }
+}
+
+impl From<&Polygon> for Mesh {
+    fn from(polygon: &Polygon) -> Self {
+        Mesh::new(PrimitiveTopology::TriangleList)
+            .with_inserted_attribute(
+                Mesh::ATTRIBUTE_POSITION,
+                polygon
+                    .vertices
+                    .iter()
+                    .map(|p| [p.x, p.y, 0.0])
+                    .collect::<Vec<_>>(),
+            )
+            .with_inserted_attribute(
+                Mesh::ATTRIBUTE_NORMAL,
+                vec![[0.0, 0.0, 1.0]; polygon.num_vertices()],
+            )
+            .with_inserted_attribute(
+                Mesh::ATTRIBUTE_UV_0,
+                polygon
+                    .vertices
+                    .iter()
+                    .map(Vec2::to_array)
+                    .collect::<Vec<_>>(),
+            )
+            .with_indices(Some(Indices::U32(
+                (1..(polygon.num_vertices() as u32 - 1))
+                    .flat_map(|i| [0, i, i + 1])
+                    .collect::<Vec<_>>(),
+            )))
+    }
+}
+
+impl From<Polygon> for Collider {
+    fn from(polygon: Polygon) -> Self {
+        let n = polygon.num_vertices();
+        Collider::polyline(
+            polygon.vertices,
+            Some(
+                (0..n as u32)
+                    .map(|i| [i, (i + 1) % n as u32])
+                    .collect::<Vec<_>>(),
+            ),
         )
     }
 }
