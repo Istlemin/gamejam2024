@@ -7,6 +7,8 @@ pub use components::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::AppState;
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -14,7 +16,7 @@ impl Plugin for GamePlugin {
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             // .add_plugins(PlayerPlugin)
             .add_systems(PreStartup, setup)
-            .add_systems(Startup, add_test_sprite);
+            .add_systems(OnEnter(AppState::InGame), add_test_sprite);
     }
 }
 

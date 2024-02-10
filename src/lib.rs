@@ -31,5 +31,6 @@ pub fn run() {
     }))
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
     .add_plugins((GamePlugin, MenuPlugin))
+    .add_state::<AppState>()
     .run();
 }
