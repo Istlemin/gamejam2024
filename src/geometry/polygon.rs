@@ -27,20 +27,23 @@ fn signed_area(vertices: &Vec<Point>) -> f32 {
 }
 
 impl Polygon {
-    pub fn new(vertices: Vec<Point>, texture_coords: Option<Vec<Point>>) -> Polygon {
-        let mut new_texture_coords = texture_coords.unwrap_or_else(|| vertices.clone());
-
-        let new_verts = if signed_area(&vertices) >= 0.0 {
-            vertices
-        } else {
-            new_texture_coords.reverse();
-            vertices.into_iter().rev().collect()
+    pub fn new_with_texture_coords(
+        mut vertices: Vec<Point>,
+        mut texture_coords: Vec<Point>,
+    ) -> Polygon {
+        if signed_area(&vertices) < 0.0 {
+            vertices.reverse();
+            texture_coords.reverse();
         };
 
         Polygon {
-            vertices: new_verts,
-            texture_coords: new_texture_coords,
+            vertices,
+            texture_coords,
         }
+    }
+
+    pub fn new(vertices: Vec<Point>) -> Polygon {
+        Polygon::new_with_texture_coords(vertices.clone(), vertices)
     }
 
     pub fn vertices(&self) -> &Vec<Point> {
