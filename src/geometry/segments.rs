@@ -119,14 +119,14 @@ impl LineSegment {
 }
 
 impl Reflectable for LineSegment {
-    fn reflect_over_line(self, line: Line) -> Self {
+    fn reflect_over_line(&self, line: Line) -> Self {
         LineSegment::new(
             self.start.reflect_over_line(line),
             self.end.reflect_over_line(line),
         )
     }
 
-    fn reflect_over_point(self, origin: Point) -> Self {
+    fn reflect_over_point(&self, origin: Point) -> Self {
         LineSegment::new(
             self.start.reflect_over_point(origin),
             self.end.reflect_over_point(origin),
