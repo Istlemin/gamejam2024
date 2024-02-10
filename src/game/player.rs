@@ -148,38 +148,21 @@ pub fn player_controller(
     mut app_state: ResMut<NextState<AppState>>,
 ) {
     for (mut player, mut velocity, mut transform) in players.iter_mut() {
-        if player.id == 0 {
-            if keyboard_input.pressed(KeyCode::Left) {
-                player_go_left(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::Right) {
-                player_go_right(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::Up) {
-                player_jump(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::ControlRight) {
-                player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
-            }
+        if keyboard_input.pressed(player.key_bindings.left) {
+            player_go_left(&mut player, &mut velocity);
         }
-        if player.id == 1 {
-            if keyboard_input.pressed(KeyCode::A) {
-                player_go_left(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::D) {
-                player_go_right(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::W) {
-                player_jump(&mut player, &mut velocity);
-            }
-            if keyboard_input.pressed(KeyCode::Space) {
-                player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
-            }
+        if keyboard_input.pressed(player.key_bindings.right) {
+            player_go_right(&mut player, &mut velocity);
         }
-
-        if keyboard_input.just_pressed(KeyCode::R) {
-            app_state.set(AppState::MainMenu);
+        if keyboard_input.pressed(player.key_bindings.jump) {
+            player_jump(&mut player, &mut velocity);
         }
+        if keyboard_input.pressed(player.key_bindings.shoot) {
+            player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
+        }
+    }
+    if keyboard_input.just_pressed(KeyCode::R) {
+        app_state.set(AppState::MainMenu);
     }
 }
 
