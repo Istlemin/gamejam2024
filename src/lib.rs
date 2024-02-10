@@ -16,6 +16,8 @@ pub enum AppState {
 use game::GamePlugin;
 use menu::MenuPlugin;
 
+mod geometry;
+
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::new();
