@@ -117,40 +117,40 @@ impl Croppable for Polygon {
 
             if line.is_on_side(self.vertices[nx], side) {
                 if !line.is_on_side(self.vertices[last], side) {
-                    let intersection = line
-                        .intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
-                        .expect("Expected intersection, but no intersection has been found");
-
-                    if (intersection - *new_vertices.last().unwrap()).length() > EPS
-                        && (intersection - self.vertices[nx]).length() > EPS
+                    if let Some(intersection) =
+                        line.intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
                     {
-                        new_texture_coords.push(interpolate(
-                            self.vertices[last],
-                            self.texture_coords[last],
-                            self.vertices[nx],
-                            self.texture_coords[nx],
-                            intersection,
-                        ));
-                        new_vertices.push(intersection);
+                        if (intersection - *new_vertices.last().unwrap()).length() > EPS
+                            && (intersection - self.vertices[nx]).length() > EPS
+                        {
+                            new_texture_coords.push(interpolate(
+                                self.vertices[last],
+                                self.texture_coords[last],
+                                self.vertices[nx],
+                                self.texture_coords[nx],
+                                intersection,
+                            ));
+                            new_vertices.push(intersection);
+                        }
                     }
                 }
                 new_vertices.push(self.vertices[nx]);
                 new_texture_coords.push(self.texture_coords[nx])
             } else {
                 if line.is_on_side(self.vertices[last], side) {
-                    let intersection = line
-                        .intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
-                        .expect("Expected intersection, but no intersection has been found");
-
-                    if (intersection - *new_vertices.last().unwrap()).length() > EPS {
-                        new_texture_coords.push(interpolate(
-                            self.vertices[last],
-                            self.texture_coords[last],
-                            self.vertices[nx],
-                            self.texture_coords[nx],
-                            intersection,
-                        ));
-                        new_vertices.push(intersection);
+                    if let Some(intersection) =
+                        line.intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
+                    {
+                        if (intersection - *new_vertices.last().unwrap()).length() > EPS {
+                            new_texture_coords.push(interpolate(
+                                self.vertices[last],
+                                self.texture_coords[last],
+                                self.vertices[nx],
+                                self.texture_coords[nx],
+                                intersection,
+                            ));
+                            new_vertices.push(intersection);
+                        }
                     }
                 }
             }
