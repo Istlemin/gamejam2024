@@ -22,16 +22,16 @@ impl Plugin for PlayerPlugin {
 }
 
 fn spawn_players(mut commands: Commands, materials: Res<Materials>){
-    spawn_player(0,&mut commands,&materials);
-    spawn_player(1,&mut commands,&materials);
+    spawn_player(0,Color::rgb(0.969, 0.200, 0.300),&mut commands);
+    spawn_player(1,Color::rgb(0.300, 0.200, 0.900),&mut commands);
 }
 
-fn spawn_player(player_id:i32, commands: &mut Commands, materials: &Res<Materials>) {
+fn spawn_player(player_id:i32, color : Color,commands: &mut Commands) {
     
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: materials.player_material.clone(),
+                color: color.into(),
                 custom_size: Vec2::new(1.0, 1.0).into(),
                 ..Default::default()
             },
@@ -43,7 +43,7 @@ fn spawn_player(player_id:i32, commands: &mut Commands, materials: &Res<Material
         Collider::cuboid(0.5, 0.5),
         ActiveEvents::COLLISION_EVENTS,
         Player {
-            speed:15.0,
+            speed:10.0,
             facing_direction:GameDirection::Right,
             jump_impulse:30.0,
             is_jumping: false,

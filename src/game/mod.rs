@@ -26,6 +26,10 @@ impl Plugin for GamePlugin {
 }
 
 fn setup(mut commands: Commands) {
+    commands.insert_resource(RapierConfiguration {
+            gravity: Vec2 {x:0.0,y:-70.0},
+            ..Default::default()
+        });
     commands.insert_resource(Materials {
         player_material: Color::rgb(0.969, 0.769, 0.784).into(),
         floor_material: Color::rgb(0.7, 0.7, 0.7).into(),

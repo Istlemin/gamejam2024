@@ -4,8 +4,8 @@ pub fn new_camera_2d() -> Camera2dBundle {
     let mut camera = Camera2dBundle {
         projection: OrthographicProjection {
             scaling_mode: ScalingMode::AutoMax {
-                max_width: 40.0,
-                max_height: 20.0,
+                max_width: 100.0,
+                max_height: 50.0,
             },
             ..default()
         },
