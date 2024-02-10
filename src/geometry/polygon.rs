@@ -50,6 +50,10 @@ impl Polygon {
         &self.vertices
     }
 
+    pub fn texture_coords(&self) -> &Vec<Point> {
+        &self.texture_coords()
+    }
+
     pub fn num_vertices(&self) -> usize {
         self.vertices.len()
     }
@@ -152,6 +156,7 @@ impl Croppable for Polygon {
             }
         }
         new_vertices.pop();
+        new_texture_coords.pop();
 
         Some(Polygon {
             vertices: new_vertices,
@@ -178,7 +183,7 @@ impl From<&Polygon> for Mesh {
             .with_inserted_attribute(
                 Mesh::ATTRIBUTE_UV_0,
                 polygon
-                    .vertices
+                    .texture_coords
                     .iter()
                     .map(Vec2::to_array)
                     .collect::<Vec<_>>(),
