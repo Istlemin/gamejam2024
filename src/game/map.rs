@@ -31,6 +31,7 @@ pub fn spawn_platform(location: Vec2, commands: &mut  Commands, materials: &Res<
             ..Default::default()
         },
         RigidBody::Fixed,
+        ActiveEvents::COLLISION_EVENTS,
         Collider::cuboid(5.0, 0.5),
         Platform
     ));

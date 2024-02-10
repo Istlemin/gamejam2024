@@ -12,15 +12,17 @@ impl Plugin for PlayerPlugin {
         app.add_systems(OnEnter(AppState::InGame), spawn_player)
             .add_systems(
                 Update,
-                camera_follow_player.run_if(in_state(AppState::InGame)),
-            ).add_systems(
-                Update,
-                player_controller.run_if(in_state(AppState::InGame)),
+                (
+                    camera_follow_player.run_if(in_state(AppState::InGame)),
+                    player_controller.run_if(in_state(AppState::InGame)),
+                    jump_reset.run_if(in_state(AppState::InGame)),
+                )
             );
     }
 }
 
 fn spawn_player(mut commands: Commands, materials: Res<Materials>) {
+    
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -32,10 +34,14 @@ fn spawn_player(mut commands: Commands, materials: Res<Materials>) {
             ..Default::default()
         },
         RigidBody::Dynamic,
+        LockedAxes::ROTATION_LOCKED,
         Collider::cuboid(0.5, 0.5),
+        ActiveEvents::COLLISION_EVENTS,
         Player {
-            speed:10.0,
-            facing_direction:GameDirection::Right
+            speed:15.0,
+            facing_direction:GameDirection::Right,
+            jump_inpulse:30.0,
+            is_jumping: false,
         },
     )).insert(Velocity {
         linvel: Vec2::new(0.0, 0.0),
@@ -68,6 +74,32 @@ pub fn player_controller(
         if keyboard_input.pressed(KeyCode::Right) {
             velocity.linvel = Vec2::new(player.speed, velocity.linvel.y).into();
             player.facing_direction = GameDirection::Right
+        }
+        if keyboard_input.pressed(KeyCode::Up) {
+            if !player.is_jumping {
+                player.is_jumping = true;
+                velocity.linvel = Vec2::new(velocity.linvel.x,player.jump_inpulse).into();
+            }
+        }
+    }
+}
+
+pub fn jump_reset(
+    mut query: Query<(Entity,&mut Player)>,
+    mut contact_events: EventReader<CollisionEvent>,
+) {
+    for contact_event in contact_events.read() {
+        for (player_entity, mut jumper) in query.iter_mut() {
+            set_jumping_false_if_touching_floor(player_entity, &mut jumper, contact_event);
+        }
+    }
+}
+
+fn set_jumping_false_if_touching_floor(player_entity: Entity, player: &mut Player, event: &CollisionEvent) {
+    debug!("Testing jump collision");
+    if let CollisionEvent::Started(h1, h2,_) = event {
+        if h1 == &player_entity || h2 == &player_entity {
+            player.is_jumping = false
         }
     }
 }
