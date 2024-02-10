@@ -14,12 +14,14 @@ impl Plugin for ReflectionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<BulletMirrorReflectionEvent>()
             .add_event::<PlatformsMirrorReflectionEvent>()
+            .add_event::<PlayerMirrorReflectionEvent>()
             .add_systems(
                 Update,
                 (
                     mirror_reflect_platforms,
                     // reflect_platforms_over_line_segment_on_key_press,
                     mirror_reflect_bullets,
+                    mirror_reflect_players,
                 )
                     .run_if(in_state(AppState::InGame)),
             );
@@ -119,6 +121,32 @@ fn mirror_reflect_bullets(
 
                 transform.translation = new_pos;
                 transform.rotation = Quat::from_rotation_z(Vec2::X.angle_between(new_velo));
+                velocity.linvel = new_velo;
+            }
+        })
+    }
+}
+
+#[derive(Event)]
+struct PlayerMirrorReflectionEvent {
+    mirror: LineSegment,
+}
+
+fn mirror_reflect_players(
+    mut players: Query<(&mut Player, &mut Transform, &mut Velocity)>,
+    mut reflection_event_reader: EventReader<PlayerMirrorReflectionEvent>,
+) {
+    for event in reflection_event_reader.read() {
+        players.for_each_mut(|(_, mut transform, mut velocity)| {
+            let pos = transform.translation.xy();
+            let velo_2d = velocity.linvel;
+            let line = event.mirror.get_line();
+
+            if event.mirror.on_strip(pos) {
+                let new_pos = pos.reflect_over_line(line).extend(0.0);
+                let new_velo = velo_2d.reflect_over_line(line.centered_line());
+
+                transform.translation = new_pos;
                 velocity.linvel = new_velo;
             }
         })
