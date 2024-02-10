@@ -1,6 +1,7 @@
 use bevy::{prelude::*, window::PresentMode, window::WindowMode};
 use wasm_bindgen::prelude::wasm_bindgen;
 // use wasm_bindgen::prelude::*;
+use bevy::log::LogPlugin;
 
 mod game;
 mod menu;
@@ -28,6 +29,9 @@ pub fn run() {
             ..default()
         }),
         ..default()
+    }).set(LogPlugin {
+        filter: "info,wgpu_core=warn,wgpu_hal=warn,mygame=debug".into(),
+        level: bevy::log::Level::DEBUG,
     }))
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
     .add_plugins((GamePlugin, MenuPlugin))

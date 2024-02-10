@@ -7,8 +7,18 @@ pub struct Materials {
     pub bullet_material: Color,
 }
 
+#[derive(Copy, Clone)]
+pub enum GameDirection {
+    Left,
+    Right,
+}
+
 #[derive(Component)]
-pub struct Player;
+
+pub struct Player {
+    pub speed: f32,
+    pub facing_direction: GameDirection,
+}
 
 #[derive(Component)]
 pub struct Platform;

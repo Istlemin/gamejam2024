@@ -12,5 +12,8 @@ cargo run
 
 ```rs
 wasm-pack build --target web --release
+or
+wasm-pack build --target web --debug
+
 npx serve .
 ```
