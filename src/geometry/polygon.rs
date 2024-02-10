@@ -1,5 +1,5 @@
 use super::utils::{cross, EPS};
-use super::{Croppable, Line, Point, Reflectable};
+use super::{Croppable, Line, LineSegment, Point, Reflectable};
 
 #[derive(Debug)]
 pub struct Polygon {
@@ -107,5 +107,20 @@ impl Croppable for Polygon {
         Some(Polygon {
             vertices: new_vertices,
         })
+    }
+}
+
+impl Polygon {
+    pub fn reflect_over_line_segment(&self, seg: LineSegment) -> Option<Polygon> {
+        let (a, b) = seg.endpoints();
+        let mirror_line = seg.get_line();
+        let border_a = mirror_line.perpendicular_through(a);
+        let border_b = mirror_line.perpendicular_through(b);
+
+        Some(
+            self.crop_to_halfplane(border_a, border_a.side(b))?
+                .crop_to_halfplane(border_b, border_b.side(a))?
+                .reflect_over_line(mirror_line),
+        )
     }
 }

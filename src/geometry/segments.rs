@@ -116,6 +116,10 @@ impl LineSegment {
 
         return 0.0 <= length && length <= direction.dot(direction);
     }
+
+    pub fn endpoints(self) -> (Point, Point) {
+        (self.start, self.end)
+    }
 }
 
 impl Reflectable for LineSegment {
