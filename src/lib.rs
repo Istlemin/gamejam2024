@@ -10,7 +10,7 @@ mod menu;
 pub enum AppState {
     #[default]
     MainMenu,
-    InGame
+    InGame,
 }
 
 use game::GamePlugin;
