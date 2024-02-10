@@ -17,6 +17,14 @@ pub enum GameDirection {
     Right,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub struct KeyBindings {
+    pub left: KeyCode,
+    pub right: KeyCode,
+    pub jump: KeyCode,
+    pub shoot: KeyCode,
+}
+
 #[derive(Component)]
 
 pub struct Player {
@@ -27,6 +35,7 @@ pub struct Player {
     pub id: i32,
     pub last_shoot_time: Duration,
     pub shoot_interval: Duration,
+    pub key_bindings: KeyBindings,
 }
 
 #[derive(Component)]

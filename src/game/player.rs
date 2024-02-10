@@ -5,7 +5,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{BulletFiredEvent, DespawnOnRestart, GameDirection, Materials, Player};
+use super::{BulletFiredEvent, DespawnOnRestart, GameDirection, KeyBindings, Materials, Player};
 
 pub struct PlayerPlugin;
 
@@ -24,11 +24,31 @@ impl Plugin for PlayerPlugin {
 }
 
 fn spawn_players(mut commands: Commands, materials: Res<Materials>) {
-    spawn_player(0, Color::rgb(0.969, 0.200, 0.300), &mut commands);
-    spawn_player(1, Color::rgb(0.300, 0.200, 0.900), &mut commands);
+    spawn_player(
+        0,
+        Color::rgb(0.969, 0.200, 0.300),
+        &mut commands,
+        KeyBindings {
+            left: KeyCode::Left,
+            right: KeyCode::Right,
+            jump: KeyCode::Up,
+            shoot: KeyCode::ControlRight,
+        },
+    );
+    spawn_player(
+        1,
+        Color::rgb(0.300, 0.200, 0.900),
+        &mut commands,
+        KeyBindings {
+            left: KeyCode::A,
+            right: KeyCode::D,
+            jump: KeyCode::W,
+            shoot: KeyCode::Space,
+        },
+    );
 }
 
-fn spawn_player(player_id: i32, color: Color, commands: &mut Commands) {
+fn spawn_player(player_id: i32, color: Color, commands: &mut Commands, key_bindings: KeyBindings) {
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -51,6 +71,7 @@ fn spawn_player(player_id: i32, color: Color, commands: &mut Commands) {
             id: player_id,
             last_shoot_time: Duration::new(0, 0),
             shoot_interval: Duration::new(0, 100_000_000),
+            key_bindings,
         },
         Velocity {
             linvel: Vec2::new(0.0, 0.0),
