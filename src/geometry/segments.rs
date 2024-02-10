@@ -59,7 +59,6 @@ impl Line {
     }
 
     pub fn perpendicular_through(self, p: Point) -> Line {
-        assert!(self.contains(p));
         Line::new_through(p, p + self.normal())
     }
 

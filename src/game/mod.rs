@@ -14,13 +14,12 @@ use map::*;
 mod bullet;
 use bullet::*;
 
-mod reflection;
-use reflection::*;
-
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
+
+use self::reflections::ReflectionsPlugin;
 
 pub struct GamePlugin;
 
@@ -30,7 +29,7 @@ impl Plugin for GamePlugin {
             .add_plugins(MapPlugin)
             .add_plugins(BulletPlugin)
             .add_plugins(PlayerPlugin)
-            .add_plugins(ReflectionPlugin)
+            .add_plugins(ReflectionsPlugin)
             .add_systems(PreStartup, setup)
             .add_systems(OnExit(AppState::InGame), cleanup);
     }
