@@ -105,10 +105,6 @@ impl LineSegment {
         }
     }
 
-    pub fn hit_by_line(self, line: Line) -> bool {
-        self.split(line).len() > 1
-    }
-
     pub fn contains(self, p: Point) -> bool {
         if !self.get_line().contains(p) {
             return false;
