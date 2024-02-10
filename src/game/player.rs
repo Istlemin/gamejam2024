@@ -5,7 +5,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{BulletFiredEvent, GameDirection, Materials, Player};
+use super::{BulletFiredEvent, DespawnOnRestart, GameDirection, Materials, Player};
 
 pub struct PlayerPlugin;
 
@@ -29,35 +29,35 @@ fn spawn_players(mut commands: Commands, materials: Res<Materials>) {
 }
 
 fn spawn_player(player_id: i32, color: Color, commands: &mut Commands) {
-    commands
-        .spawn((
-            SpriteBundle {
-                sprite: Sprite {
-                    color: color.into(),
-                    custom_size: Vec2::new(1.0, 1.0).into(),
-                    ..Default::default()
-                },
-                transform: Transform::from_translation(Vec3::new(0.0, 10.0, 0.)),
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: color.into(),
+                custom_size: Vec2::new(1.0, 1.0).into(),
                 ..Default::default()
             },
-            RigidBody::Dynamic,
-            LockedAxes::ROTATION_LOCKED,
-            Collider::cuboid(0.5, 0.5),
-            ActiveEvents::COLLISION_EVENTS,
-            Player {
-                speed: 10.0,
-                facing_direction: GameDirection::Right,
-                jump_impulse: 30.0,
-                is_jumping: false,
-                id: player_id,
-                last_shoot_time: Duration::new(0, 0),
-                shoot_interval: Duration::new(0, 100_000_000),
-            },
-        ))
-        .insert(Velocity {
+            transform: Transform::from_translation(Vec3::new(0.0, 10.0, 0.)),
+            ..Default::default()
+        },
+        RigidBody::Dynamic,
+        LockedAxes::ROTATION_LOCKED,
+        Collider::cuboid(0.5, 0.5),
+        ActiveEvents::COLLISION_EVENTS,
+        Player {
+            speed: 10.0,
+            facing_direction: GameDirection::Right,
+            jump_impulse: 30.0,
+            is_jumping: false,
+            id: player_id,
+            last_shoot_time: Duration::new(0, 0),
+            shoot_interval: Duration::new(0, 100_000_000),
+        },
+        Velocity {
             linvel: Vec2::new(0.0, 0.0),
             angvel: 0.0,
-        });
+        },
+        DespawnOnRestart {},
+    ));
 }
 
 fn camera_follow_player(
@@ -124,6 +124,7 @@ pub fn player_controller(
     mut players: Query<(&mut Player, &mut Velocity, &mut Transform)>,
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
+    mut app_state: ResMut<NextState<AppState>>,
 ) {
     for (mut player, mut velocity, mut transform) in players.iter_mut() {
         if player.id == 0 {
@@ -150,6 +151,10 @@ pub fn player_controller(
             if keyboard_input.pressed(KeyCode::W) {
                 player_jump(&mut player, &mut velocity);
             }
+        }
+
+        if keyboard_input.just_pressed(KeyCode::R) {
+            app_state.set(AppState::MainMenu);
         }
     }
 }

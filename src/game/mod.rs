@@ -16,6 +16,8 @@ use bullet::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::AppState;
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -24,7 +26,14 @@ impl Plugin for GamePlugin {
             .add_plugins(MapPlugin)
             .add_plugins(BulletPlugin)
             .add_plugins(PlayerPlugin)
-            .add_systems(PreStartup, setup);
+            .add_systems(PreStartup, setup)
+            .add_systems(OnExit(AppState::InGame), cleanup);
+    }
+}
+
+fn cleanup(to_despawn: Query<Entity, With<DespawnOnRestart>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
     }
 }
 

@@ -32,3 +32,6 @@ pub struct Bullet {}
 
 #[derive(Component)]
 pub struct Platform;
+
+#[derive(Component)]
+pub struct DespawnOnRestart {}

@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{geometry::Polygon, AppState};
 
-use super::{Materials, Platform};
+use super::{DespawnOnRestart, Materials, Platform};
 
 pub struct MapPlugin;
 
@@ -46,6 +46,7 @@ pub fn spawn_polygon(
         RigidBody::Fixed,
         ActiveEvents::COLLISION_EVENTS,
         Platform,
+        DespawnOnRestart {},
     ));
 }
 

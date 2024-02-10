@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{Bullet, GameDirection, Materials, Player};
+use super::{Bullet, DespawnOnRestart, GameDirection, Materials, Player};
 
 #[derive(Event)]
 pub struct BulletFiredEvent {
@@ -69,6 +69,7 @@ pub fn spawn_bullet(
                     linvel: velocity,
                     angvel: 0.0,
                 },
+                DespawnOnRestart {},
             ))
             .insert(BulletLifeTimer(Timer::from_seconds(1.0, TimerMode::Once)));
     }
