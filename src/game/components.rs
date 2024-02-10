@@ -18,8 +18,9 @@ pub enum GameDirection {
 pub struct Player {
     pub speed: f32,
     pub facing_direction: GameDirection,
-    pub jump_inpulse: f32,
+    pub jump_impulse: f32,
     pub is_jumping: bool,
+    pub id:i32,
 }
 
 #[derive(Component)]
