@@ -7,36 +7,22 @@ use components::*;
 mod player;
 use player::*;
 
+mod map;
+use map::*;
+
+
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
-
-use crate::AppState;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_plugins(MapPlugin)
             .add_plugins(PlayerPlugin)
-            .add_systems(PreStartup, setup)
-            .add_systems(OnEnter(AppState::InGame), add_test_sprite);
+            .add_systems(PreStartup, setup);
     }
-}
-
-fn add_test_sprite(mut commands: Commands, materials: Res<Materials>) {
-    commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: materials.floor_material.clone(),
-                custom_size: Vec2::new(10.0, 1.0).into(),
-                ..Default::default()
-            },
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.)),
-            ..Default::default()
-        },
-        RigidBody::Fixed,
-        Collider::cuboid(5.0, 0.5),
-    ));
 }
 
 fn setup(mut commands: Commands) {

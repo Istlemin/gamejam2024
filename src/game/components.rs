@@ -9,3 +9,6 @@ pub struct Materials {
 
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Component)]
+pub struct Platform;
