@@ -1,6 +1,9 @@
 use bevy::{prelude::*, window::PresentMode, window::WindowMode};
 use wasm_bindgen::prelude::*;
 
+mod game;
+use game::GamePlugin;
+
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::new();
@@ -16,5 +19,6 @@ pub fn run() {
         ..default()
     }))
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+    .add_plugins(GamePlugin)
     .run();
 }
