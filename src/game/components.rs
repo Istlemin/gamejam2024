@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use bevy::prelude::*;
 
 #[derive(Resource)]
@@ -21,6 +23,8 @@ pub struct Player {
     pub jump_impulse: f32,
     pub is_jumping: bool,
     pub id: i32,
+    pub last_shoot_time: Duration,
+    pub shoot_interval: Duration,
 }
 
 #[derive(Component)]
