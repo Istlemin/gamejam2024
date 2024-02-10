@@ -1,4 +1,4 @@
-use super::utils::cross;
+use super::utils::{cross, EPS};
 use super::{Croppable, Line, Point, Reflectable};
 
 #[derive(Debug)]
@@ -79,18 +79,26 @@ impl Croppable for Polygon {
 
             if line.is_on_side(self.vertices[nx], side) {
                 if !line.is_on_side(self.vertices[last], side) {
-                    new_vertices.push(
-                        line.intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
-                            .expect("Expected intersection, but no intersection has been found"),
-                    );
+                    let intersection = line
+                        .intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
+                        .expect("Expected intersection, but no intersection has been found");
+
+                    if (intersection - *new_vertices.last().unwrap()).length() > EPS
+                        && (intersection - self.vertices[nx]).length() > EPS
+                    {
+                        new_vertices.push(intersection);
+                    }
                 }
                 new_vertices.push(self.vertices[nx]);
             } else {
                 if line.is_on_side(self.vertices[last], side) {
-                    new_vertices.push(
-                        line.intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
-                            .expect("Expected intersection, but no intersection has been found"),
-                    );
+                    let intersection = line
+                        .intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
+                        .expect("Expected intersection, but no intersection has been found");
+
+                    if (intersection - *new_vertices.last().unwrap()).length() > EPS {
+                        new_vertices.push(intersection);
+                    }
                 }
             }
         }
