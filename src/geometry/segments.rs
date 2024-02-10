@@ -74,6 +74,13 @@ impl Line {
     pub fn is_on_side(self, p: Point, side: f32) -> bool {
         self.side(p).abs() < EPS || self.side(p) * side > 0.0
     }
+
+    pub fn centered_line(self) -> Line {
+        Line {
+            coeffs: self.coeffs,
+            offset: 0.0,
+        }
+    }
 }
 
 impl LineSegment {
