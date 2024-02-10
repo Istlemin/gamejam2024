@@ -22,7 +22,6 @@ enum MenuButtonAction {
 struct MainMenu;
 
 fn main_menu_setup(mut commands: Commands) {
-    info!("What?");
     commands
         .spawn((
             NodeBundle {
