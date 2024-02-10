@@ -1,5 +1,5 @@
 use crate::{
-    geometry::{LineSegment, Point, Reflectable},
+    geometry::{LineSegment, Reflectable},
     AppState,
 };
 use bevy::prelude::*;
@@ -11,27 +11,23 @@ pub struct ReflectionPlugin;
 
 impl Plugin for ReflectionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<BulletReflectionEvent>()
-            .add_systems(
-                Update,
-                (mirror_reflect_bullets.run_if(in_state(AppState::InGame)),),
-            )
-            .add_systems(Update, debug_reflection);
+        app.add_event::<BulletMirrorReflectionEvent>().add_systems(
+            Update,
+            (mirror_reflect_bullets.run_if(in_state(AppState::InGame)),),
+        );
     }
 }
 
 #[derive(Event)]
-struct BulletReflectionEvent {
+struct BulletMirrorReflectionEvent {
     mirror: LineSegment,
 }
 
 fn mirror_reflect_bullets(
     mut bullets: Query<(&mut Bullet, &mut Transform, &mut Velocity)>,
-    mut reflection_event_reader: EventReader<BulletReflectionEvent>,
+    mut reflection_event_reader: EventReader<BulletMirrorReflectionEvent>,
 ) {
     for event in reflection_event_reader.read() {
-        debug!("Bullet Reflection Event");
-
         bullets.for_each_mut(|(_, mut transform, mut velocity)| {
             let pos = transform.translation.xy();
             let rot_up = transform.up().xy();
