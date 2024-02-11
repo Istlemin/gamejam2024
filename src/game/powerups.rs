@@ -57,6 +57,8 @@ fn spawn_powerup(
         let y = POWERUP_YMIN + random::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
         info!("Spawning Powerup at {:?} {:?}", x, y);
 
+        let reflections = thread_rng().gen_range(1..8);
+
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(0.5).into()).into(),
@@ -68,9 +70,9 @@ fn spawn_powerup(
             ActiveEvents::COLLISION_EVENTS,
             DespawnOnRestart {},
             Powerup::Mirror(MirrorType {
-                reflect_bullets: random(),
-                reflect_players: random(),
-                reflect_platforms: random(),
+                reflect_bullets: (reflections & 1) > 0,
+                reflect_players: (reflections & 2) > 0,
+                reflect_platforms: (reflections & 4) > 0,
             }),
         ));
     }
