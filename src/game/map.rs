@@ -39,7 +39,7 @@ pub fn spawn_floor(
             &mut meshes,
         )
     }
-    add_death_zone(&mut commands, &materials, map.death_zone);
+    //add_death_zone(&mut commands, &materials, map.death_zone);
 }
 
 pub fn spawn_polygon(

@@ -67,6 +67,7 @@ pub struct Player {
     pub shoot_interval: Duration,
     pub key_bindings: KeyBindings,
     pub powerup: Option<PowerupState>,
+    pub is_running: bool,
 }
 
 #[derive(Component)]

@@ -45,16 +45,21 @@ fn animate_sprite(
         &AnimationIndices,
         &mut AnimationTimer,
         &mut TextureAtlasSprite,
+        &Player,
     )>,
 ) {
-    for (indices, mut timer, mut sprite) in &mut query {
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            sprite.index = if sprite.index == indices.last {
-                indices.first
-            } else {
-                sprite.index + 1
-            };
+    for (indices, mut timer, mut sprite, player) in &mut query {
+        if player.is_running {
+            timer.tick(time.delta());
+            if timer.just_finished() {
+                sprite.index = if sprite.index == indices.last {
+                    indices.first
+                } else {
+                    sprite.index + 1
+                };
+            }
+        } else {
+            sprite.index = 0;
         }
     }
 }
@@ -66,7 +71,7 @@ fn spawn_players(
 ) {
     spawn_player(
         0,
-        Transform::from_xyz(1.0, 10.0, 0.0),
+        Transform::from_xyz(1.0, 7.0, 0.0),
         Color::rgb(0.969, 0.200, 0.300),
         &mut commands,
         &asset_server,
@@ -75,13 +80,13 @@ fn spawn_players(
             left: KeyCode::Left,
             right: KeyCode::Right,
             jump: KeyCode::Up,
-            shoot: KeyCode::ControlRight,
+            shoot: KeyCode::Period,
             powerup: KeyCode::ShiftRight,
         },
     );
     spawn_player(
         1,
-        Transform::from_xyz(-1.0, 10.0, 0.0),
+        Transform::from_xyz(-1.0, 7.0, 0.0),
         Color::rgb(0.300, 0.200, 0.900),
         &mut commands,
         &asset_server,
@@ -141,6 +146,7 @@ fn spawn_player(
             shoot_interval: Duration::new(0, 100_000_000),
             key_bindings,
             powerup: None,
+            is_running: false,
         },
         Velocity {
             linvel: Vec2::new(0.0, 0.0),
@@ -169,7 +175,8 @@ pub fn player_go_left(
 ) {
     velocity.linvel = Vec2::new(-player.speed, velocity.linvel.y).into();
     player.facing_direction = GameDirection::Left;
-    sprite.flip_x = true
+    sprite.flip_x = true;
+    player.is_running = true;
 }
 
 pub fn player_go_right(
@@ -179,7 +186,8 @@ pub fn player_go_right(
 ) {
     velocity.linvel = Vec2::new(player.speed, velocity.linvel.y).into();
     player.facing_direction = GameDirection::Right;
-    sprite.flip_x = false
+    sprite.flip_x = false;
+    player.is_running = true;
 }
 
 pub fn player_jump(player: &mut Player, velocity: &mut Velocity) {
@@ -345,6 +353,7 @@ pub fn player_controller(
     mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
 ) {
     for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
+        player.is_running = false;
         if keyboard_input.pressed(player.key_bindings.left) {
             player_go_left(&mut player, &mut velocity, &mut sprite);
         }
@@ -396,24 +405,31 @@ fn set_jumping_false_if_touching_floor(
 }
 
 fn check_death_collision(
-    mut players: Query<(Entity, &Player)>,
-    mut death_zones: Query<(Entity, &DeathZone)>,
-    mut contact_events: EventReader<CollisionEvent>,
+    mut players: Query<(&Transform, &Player)>,
+    //mut death_zones: Query<(Entity, &DeathZone)>,
+    //mut contact_events: EventReader<CollisionEvent>,
     mut send_game_over_event: EventWriter<GameOverEvent>,
 ) {
-    for contact_event in contact_events.read() {
-        if let CollisionEvent::Started(h1, h2, _) = contact_event {
-            if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
-                if let Ok((death_zones_entity, death_zones)) =
-                    death_zones.get(*h1).or(death_zones.get(*h2))
-                {
-                    send_game_over_event.send(GameOverEvent {
-                        lost_player: player.id,
-                    })
-                }
-            }
+    for (transform, player) in players.iter() {
+        if transform.translation.y < -40.0 {
+            send_game_over_event.send(GameOverEvent {
+                lost_player: player.id,
+            })
         }
     }
+    // for contact_event in contact_events.read() {
+    //     if let CollisionEvent::Started(h1, h2, _) = contact_event {
+    //         if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
+    //             if let Ok((death_zones_entity, death_zones)) =
+    //                 death_zones.get(*h1).or(death_zones.get(*h2))
+    //             {
+    //                 send_game_over_event.send(GameOverEvent {
+    //                     lost_player: player.id,
+    //                 })
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 
