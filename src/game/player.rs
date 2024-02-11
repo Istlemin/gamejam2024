@@ -32,11 +32,10 @@ impl Plugin for PlayerPlugin {
                     jump_reset.run_if(in_state(AppState::InGame)),
                     check_death_collision.run_if(in_state(AppState::InGame)),
                     animate_sprite.run_if(in_state(AppState::InGame)),
-                )
+                ),
             );
     }
 }
-
 
 #[derive(Component)]
 struct AnimationIndices {
@@ -67,14 +66,17 @@ fn animate_sprite(
     }
 }
 
-fn spawn_players(mut commands: Commands, asset_server: Res<AssetServer>, mut texture_atlases: ResMut<Assets<TextureAtlas>>){
-
+fn spawn_players(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
     spawn_player(
         0,
-        Transform::from_xyz(1.0, 0.0, 0.0),
+        Transform::from_xyz(1.0, 10.0, 0.0),
         Color::rgb(0.969, 0.200, 0.300),
         &mut commands,
-        &asset_server, 
+        &asset_server,
         &mut texture_atlases,
         KeyBindings {
             left: KeyCode::Left,
@@ -86,10 +88,10 @@ fn spawn_players(mut commands: Commands, asset_server: Res<AssetServer>, mut tex
     );
     spawn_player(
         1,
-        Transform::from_xyz(-1.0, 0.0, 0.0),
+        Transform::from_xyz(-1.0, 10.0, 0.0),
         Color::rgb(0.300, 0.200, 0.900),
         &mut commands,
-        &asset_server, 
+        &asset_server,
         &mut texture_atlases,
         KeyBindings {
             left: KeyCode::A,
@@ -101,15 +103,27 @@ fn spawn_players(mut commands: Commands, asset_server: Res<AssetServer>, mut tex
     );
 }
 
-fn spawn_player(player_id: i32, position: Transform, color: Color, commands: &mut Commands, asset_server: &Res<AssetServer>, texture_atlases: &mut ResMut<Assets<TextureAtlas>>, key_bindings: KeyBindings) {
+fn spawn_player(
+    player_id: i32,
+    position: Transform,
+    color: Color,
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    key_bindings: KeyBindings,
+) {
     let texture_handle = asset_server.load("textures/gabe-idle-run.png");
     let texture_atlas =
         TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     // Use only the subset of sprites in the sheet that make up the run animation
     let animation_indices = AnimationIndices { first: 1, last: 6 };
-    let scale = Vec3{x: 0.125, y: 0.125, z: 0.125};
-    
+    let scale = Vec3 {
+        x: 0.125,
+        y: 0.125,
+        z: 0.125,
+    };
+
     commands.spawn((
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
@@ -121,7 +135,7 @@ fn spawn_player(player_id: i32, position: Transform, color: Color, commands: &mu
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
-        Collider::cuboid(1.5, 1.5),
+        Collider::cuboid(8., 12.),
         ActiveEvents::COLLISION_EVENTS,
         Player {
             speed: 10.0,
