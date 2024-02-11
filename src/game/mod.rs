@@ -46,7 +46,8 @@ impl Plugin for GamePlugin {
             .add_plugins(PowerupsPlugin)
             .add_systems(PreStartup, setup)
             .add_systems(Update, game_over)
-            .add_systems(OnExit(AppState::InGame), cleanup);
+            .add_systems(OnExit(AppState::InGame), cleanup)
+            .add_systems(Update, tick_timers.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -93,4 +94,19 @@ fn setup(
     });
     commands.insert_resource(get_map1());
     commands.spawn(new_camera_2d());
+}
+
+fn tick_timers(
+    mut commands: Commands,
+    mut cooldowns: Query<(Entity, &mut LifeTimer)>,
+    time: Res<Time>,
+) {
+    // debug!("ticking");
+    for (bullet, mut cooldown) in &mut cooldowns {
+        cooldown.0.tick(time.delta());
+
+        if cooldown.0.finished() {
+            commands.entity(bullet).despawn();
+        }
+    }
 }

@@ -96,6 +96,9 @@ pub struct AnimationIndices {
 pub struct AnimationTimer(pub Timer);
 
 #[derive(Component)]
+pub struct LifeTimer(pub Timer);
+
+#[derive(Component)]
 pub struct DeathZone {}
 
 impl Platform {

@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{Bullet, DespawnOnRestart, GameDirection, Materials, Player};
+use super::{Bullet, DespawnOnRestart, GameDirection, LifeTimer, Materials, Player};
 
 #[derive(Event)]
 pub struct BulletFiredEvent {
@@ -17,9 +17,6 @@ pub struct BulletHitEvent {
     pub bullet: Entity,
 }
 
-#[derive(Component)]
-struct BulletLifeTimer(Timer);
-
 pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
@@ -32,7 +29,6 @@ impl Plugin for BulletPlugin {
                     spawn_bullet.run_if(in_state(AppState::InGame)),
                     check_player_hit.run_if(in_state(AppState::InGame)),
                     player_hit.run_if(in_state(AppState::InGame)),
-                    tick_bullet_timers.run_if(in_state(AppState::InGame)),
                 ),
             );
     }
@@ -80,22 +76,7 @@ pub fn spawn_bullet(
                 },
                 DespawnOnRestart {},
             ))
-            .insert(BulletLifeTimer(Timer::from_seconds(1.0, TimerMode::Once)));
-    }
-}
-
-fn tick_bullet_timers(
-    mut commands: Commands,
-    mut cooldowns: Query<(Entity, &mut BulletLifeTimer)>,
-    time: Res<Time>,
-) {
-    // debug!("ticking");
-    for (bullet, mut cooldown) in &mut cooldowns {
-        cooldown.0.tick(time.delta());
-
-        if cooldown.0.finished() {
-            commands.entity(bullet).despawn();
-        }
+            .insert(LifeTimer(Timer::from_seconds(1.0, TimerMode::Once)));
     }
 }
 
