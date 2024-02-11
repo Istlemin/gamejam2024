@@ -139,3 +139,8 @@ impl Mirror {
         LineSegment::new(self.position + offset, self.position - offset)
     }
 }
+
+#[derive(Resource)]
+pub struct PlayerControls {
+    pub controls: Vec<KeyBindings>,
+}

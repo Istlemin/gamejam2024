@@ -13,7 +13,7 @@ pub enum AppState {
     InGame,
 }
 
-use game::GamePlugin;
+use game::{GamePlugin, KeyBindings, PlayerControls};
 use menu::MenuPlugin;
 
 mod geometry;
@@ -41,6 +41,24 @@ pub fn run() {
             .set(ImagePlugin::default_nearest()),
     )
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+    .insert_resource(PlayerControls {
+        controls: vec![
+            KeyBindings {
+                left: KeyCode::A,
+                right: KeyCode::D,
+                jump: KeyCode::W,
+                shoot: KeyCode::Space,
+                powerup: KeyCode::M,
+            },
+            KeyBindings {
+                left: KeyCode::Left,
+                right: KeyCode::Right,
+                jump: KeyCode::Up,
+                shoot: KeyCode::Period,
+                powerup: KeyCode::ShiftRight,
+            },
+        ],
+    })
     .add_plugins((GamePlugin, MenuPlugin))
     .add_state::<AppState>()
     .run();
