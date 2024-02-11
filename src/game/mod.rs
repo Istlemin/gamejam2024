@@ -82,6 +82,7 @@ fn setup(
 
     let floor_texture: Handle<Image> =
         asset_server.load_with_settings("textures/grass.png", settings);
+
     commands.insert_resource(RapierConfiguration {
         gravity: Vec2 { x: 0.0, y: -70.0 },
         ..Default::default()

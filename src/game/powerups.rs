@@ -59,6 +59,7 @@ fn spawn_powerup(
     mut powerup_event: EventReader<PowerupSpawnEvent>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     for _ in powerup_event.read() {
         let x = POWERUP_XMIN + random::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
@@ -70,7 +71,7 @@ fn spawn_powerup(
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(0.5).into()).into(),
-                material: materials.add(ColorMaterial::from(Color::PURPLE)),
+                material: materials.add(asset_server.load("textures/orb.png").into()),
                 transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
                 ..default()
             },

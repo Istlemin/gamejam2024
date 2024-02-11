@@ -7,7 +7,7 @@ use crate::{geometry::LineSegment, AppState};
 
 use super::{
     reflections::MirrorUseEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone,
-    DespawnOnRestart, GameDirection, KeyBindings, Mirror, Player, PowerupState,
+    DespawnOnRestart, GameDirection, KeyBindings, Mirror, Platform, Player, PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -401,23 +401,18 @@ pub fn player_controller(
 
 pub fn jump_reset(
     mut query: Query<(Entity, &mut Player)>,
+    mut platforms: Query<(Entity, &Platform)>,
     mut contact_events: EventReader<CollisionEvent>,
 ) {
     for contact_event in contact_events.read() {
-        for (player_entity, mut jumper) in query.iter_mut() {
-            set_jumping_false_if_touching_floor(player_entity, &mut jumper, contact_event);
-        }
-    }
-}
-
-fn set_jumping_false_if_touching_floor(
-    player_entity: Entity,
-    player: &mut Player,
-    event: &CollisionEvent,
-) {
-    if let CollisionEvent::Started(h1, h2, _) = event {
-        if h1 == &player_entity || h2 == &player_entity {
-            player.is_jumping = false
+        for (player_entity, mut player) in query.iter_mut() {
+            if let CollisionEvent::Started(h1, h2, _) = contact_event {
+                if let Ok((platform_entity, platform)) = platforms.get(*h1).or(platforms.get(*h2)) {
+                    if h1 == &player_entity || h2 == &player_entity {
+                        player.is_jumping = false
+                    }
+                }
+            }
         }
     }
 }
