@@ -9,7 +9,7 @@ use super::{
     reflections::{
         BulletMirrorReflectionEvent, PlatformsMirrorReflectionEvent, PlayerMirrorReflectionEvent,
     },
-    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials,
+    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials, Mirror,
     MirrorType, Player, PowerupState,
 };
 
@@ -23,15 +23,21 @@ pub struct GameOverEvent {
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GameOverEvent>()
+            .add_event::<MirrorSpawnEvent>()
             .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
                 (
                     //camera_follow_player.run_if(in_state(AppState::InGame)),
-                    player_controller.run_if(in_state(AppState::InGame)),
-                    jump_reset.run_if(in_state(AppState::InGame)),
-                    check_death_collision.run_if(in_state(AppState::InGame)),
-                    animate_sprite.run_if(in_state(AppState::InGame)),
+                    (
+                        player_controller,
+                        jump_reset,
+                        check_death_collision,
+                        animate_sprite,
+                        draw_mirrors,
+                        spawn_mirror,
+                    )
+                        .run_if(in_state(AppState::InGame)),
                 ),
             );
     }
@@ -228,10 +234,12 @@ pub fn player_shoot(
 
 pub fn player_use_powerup(
     player: &mut Player,
+    player_entity: Entity,
     transform: &mut Transform,
     send_bullet_mirref_event: &mut EventWriter<BulletMirrorReflectionEvent>,
     send_player_mirref_event: &mut EventWriter<PlayerMirrorReflectionEvent>,
     send_platforms_mirref_event: &mut EventWriter<PlatformsMirrorReflectionEvent>,
+    send_mirror_spawn_event: &mut EventWriter<MirrorSpawnEvent>,
     commands: &mut Commands,
 ) {
     player.powerup = if let Some(powerup) = player.powerup {
@@ -241,11 +249,16 @@ pub fn player_use_powerup(
                 r#type,
                 point1: None,
                 point2: _,
-            } => Some(PowerupState::Mirror {
-                r#type,
-                point1: Some(transform.translation.xy()),
-                point2: None,
-            }),
+            } => {
+                send_mirror_spawn_event.send(MirrorSpawnEvent {
+                    owner: player_entity,
+                });
+                Some(PowerupState::Mirror {
+                    r#type,
+                    point1: Some(transform.translation.xy()),
+                    point2: None,
+                })
+            }
             PowerupState::Mirror {
                 r#type,
                 point1: Some(p1),
@@ -279,9 +292,70 @@ pub fn player_use_powerup(
     };
 }
 
+#[derive(Event)]
+pub struct MirrorSpawnEvent {
+    pub owner: Entity,
+}
+
+fn spawn_mirror(
+    mut commands: Commands,
+    mut events: EventReader<MirrorSpawnEvent>,
+    asset_server: Res<AssetServer>,
+) {
+    for MirrorSpawnEvent { owner } in events.read() {
+        commands.spawn((
+            SpriteBundle {
+                texture: asset_server.load("textures/mirror.png"),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(0.7, 1.5)),
+                    ..default()
+                },
+                ..default()
+            },
+            Mirror { owner: *owner },
+        ));
+    }
+}
+
+fn draw_mirrors(
+    mut mirrors: Query<(Entity, &Mirror, &mut Transform), Without<Player>>,
+    players: Query<(&Player, &Transform)>,
+    mut commands: Commands,
+) {
+    for (entity, mirror, mut transform) in mirrors.iter_mut() {
+        let mirror = if let Ok((player, player_transform)) = players.get(mirror.owner) {
+            match player.powerup {
+                Some(PowerupState::Mirror {
+                    point1: Some(p1),
+                    point2,
+                    ..
+                }) => Some(LineSegment::new(
+                    p1,
+                    point2.unwrap_or(player_transform.translation.xy()),
+                )),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        if let Some(mirror) = mirror {
+            transform.translation = mirror.mid_point().extend(0.0);
+            transform.rotation = Quat::from_axis_angle(
+                Vec3::Z,
+                Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
+            );
+            transform.scale = Vec3::new(1.0, mirror.length(), 1.0);
+        } else {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
 pub fn player_controller(
     keyboard_input: Res<Input<KeyCode>>,
     mut players: Query<(
+        Entity,
         &mut Player,
         &mut Velocity,
         &mut Transform,
@@ -293,9 +367,10 @@ pub fn player_controller(
     mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
     mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
     mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
+    mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
     mut commands: Commands,
 ) {
-    for (mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
+    for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
         if keyboard_input.pressed(player.key_bindings.left) {
             player_go_left(&mut player, &mut velocity, &mut sprite);
         }
@@ -311,11 +386,13 @@ pub fn player_controller(
         if keyboard_input.just_pressed(player.key_bindings.powerup) {
             player_use_powerup(
                 &mut player,
+                entity,
                 &mut transform,
                 &mut send_bullet_mirref_event,
                 &mut send_player_mirref_event,
                 &mut send_platforms_mirref_event,
-                &mut commands,
+                &mut send_mirror_spawn_event,
+                &mut &mut commands,
             )
         }
     }

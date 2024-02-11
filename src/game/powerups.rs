@@ -129,7 +129,8 @@ fn check_powerup_collection(
     }
 }
 
-const POWERUP_PROBABILITY: f32 = 0.05;
+// const POWERUP_PROBABILITY: f32 = 0.05;
+const POWERUP_PROBABILITY: f32 = 0.5;
 
 fn check_powerup_spawn(mut spawn_event: EventWriter<PowerupSpawnEvent>) {
     if random::<f32>() < POWERUP_PROBABILITY {

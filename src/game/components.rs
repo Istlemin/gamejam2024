@@ -95,3 +95,8 @@ impl Platform {
 pub struct MirrorAnimation {
     pub timer: Timer,
 }
+
+#[derive(Component)]
+pub struct Mirror {
+    pub owner: Entity,
+}
