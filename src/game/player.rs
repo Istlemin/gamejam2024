@@ -168,14 +168,24 @@ fn camera_follow_player(
     }
 }
 
-pub fn player_go_left(player: &mut Player, velocity: &mut Velocity) {
+pub fn player_go_left(
+    player: &mut Player,
+    velocity: &mut Velocity,
+    sprite: &mut TextureAtlasSprite,
+) {
     velocity.linvel = Vec2::new(-player.speed, velocity.linvel.y).into();
-    player.facing_direction = GameDirection::Left
+    player.facing_direction = GameDirection::Left;
+    sprite.flip_x = true
 }
 
-pub fn player_go_right(player: &mut Player, velocity: &mut Velocity) {
+pub fn player_go_right(
+    player: &mut Player,
+    velocity: &mut Velocity,
+    sprite: &mut TextureAtlasSprite,
+) {
     velocity.linvel = Vec2::new(player.speed, velocity.linvel.y).into();
-    player.facing_direction = GameDirection::Right
+    player.facing_direction = GameDirection::Right;
+    sprite.flip_x = false
 }
 
 pub fn player_jump(player: &mut Player, velocity: &mut Velocity) {
@@ -268,7 +278,12 @@ pub fn player_use_powerup(
 
 pub fn player_controller(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut Player, &mut Velocity, &mut Transform)>,
+    mut players: Query<(
+        &mut Player,
+        &mut Velocity,
+        &mut Transform,
+        &mut TextureAtlasSprite,
+    )>,
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
     mut app_state: ResMut<NextState<AppState>>,
@@ -276,12 +291,12 @@ pub fn player_controller(
     mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
     mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
 ) {
-    for (mut player, mut velocity, mut transform) in players.iter_mut() {
+    for (mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
         if keyboard_input.pressed(player.key_bindings.left) {
-            player_go_left(&mut player, &mut velocity);
+            player_go_left(&mut player, &mut velocity, &mut sprite);
         }
         if keyboard_input.pressed(player.key_bindings.right) {
-            player_go_right(&mut player, &mut velocity);
+            player_go_right(&mut player, &mut velocity, &mut sprite);
         }
         if keyboard_input.pressed(player.key_bindings.jump) {
             player_jump(&mut player, &mut velocity);
