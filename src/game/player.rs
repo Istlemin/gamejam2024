@@ -6,8 +6,7 @@ use bevy_rapier2d::prelude::*;
 use crate::{geometry::LineSegment, AppState};
 
 use super::{
-    reflections::MirrorUseEvent, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection,
-    KeyBindings, Mirror, Player, PowerupState,
+    reflections::MirrorUseEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, Player, PowerupState
 };
 
 pub struct PlayerPlugin;
@@ -39,15 +38,6 @@ impl Plugin for PlayerPlugin {
             );
     }
 }
-
-#[derive(Component)]
-struct AnimationIndices {
-    first: usize,
-    last: usize,
-}
-
-#[derive(Component, Deref, DerefMut)]
-struct AnimationTimer(Timer);
 
 fn animate_sprite(
     time: Res<Time>,
@@ -125,7 +115,7 @@ fn spawn_player(
         x: 0.125,
         y: 0.125,
         z: 0.125,
-    };
+    };                                     
 
     commands.spawn((
         SpriteSheetBundle {
@@ -424,4 +414,12 @@ fn check_death_collision(
             }
         }
     }
+}
+
+
+fn reflect_player_through_point(mut transform: Transform, reflection_point: Transform) {
+    let pos = transform.translation;
+    let reflection_pos = reflection_point.translation;
+    let new_pos = reflection_pos + reflection_pos - pos;
+    transform = transform.with_translation(new_pos);
 }

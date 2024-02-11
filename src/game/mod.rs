@@ -1,3 +1,4 @@
+mod butterfly;
 mod camera;
 mod reflections;
 use camera::*;
@@ -30,7 +31,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use self::reflections::ReflectionsPlugin;
+use self::{butterfly::ButterflyPlugin, reflections::ReflectionsPlugin};
 
 pub struct GamePlugin;
 
@@ -40,6 +41,7 @@ impl Plugin for GamePlugin {
             .add_plugins(MapPlugin)
             .add_plugins(BulletPlugin)
             .add_plugins(PlayerPlugin)
+            .add_plugins(ButterflyPlugin)
             .add_plugins(ReflectionsPlugin)
             .add_plugins(PowerupsPlugin)
             .add_systems(PreStartup, setup)
