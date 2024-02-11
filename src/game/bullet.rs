@@ -101,17 +101,17 @@ fn tick_bullet_timers(
 
 fn player_hit(
     mut commands: Commands,
-    mut player_velocities: Query<(Entity, &mut Velocity), (With<Player>, Without<Player>)>,
+    mut player_velocities: Query<(Entity, &mut Velocity), (With<Player>, Without<Bullet>)>,
     mut bullet_velocities: Query<(Entity, &Velocity), (With<Bullet>, Without<Player>)>,
     mut ev_hit: EventReader<BulletHitEvent>,
 ) {
     for BulletHitEvent { target, bullet } in ev_hit.read() {
-        debug!("Bullet hit event!");
+        // debug!("Bullet hit event!");
         if let Ok((_, mut player_velocity)) = player_velocities.get_mut(*target) {
-            debug!("Matched player!");
-            if let Ok((_, bullet_velocity)) = bullet_velocities.get_mut(*bullet) {
-                debug!("Matched bullet!");
-                player_velocity.linvel += bullet_velocity.linvel * 4.0;
+            // debug!("Matched player!");
+            if let Ok((_, bullet_velocity)) = bullet_velocities.get(*bullet) {
+                //debug!("Matched bullet!");
+                player_velocity.linvel += bullet_velocity.linvel * 1.5;
             }
         }
         commands.entity(*bullet).despawn();

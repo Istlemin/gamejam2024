@@ -136,6 +136,7 @@ fn spawn_player(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Collider::cuboid(8., 12.),
+        KinematicCharacterController::default(),
         ActiveEvents::COLLISION_EVENTS,
         Player {
             speed: 10.0,
