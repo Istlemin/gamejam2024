@@ -6,9 +6,7 @@ use bevy_rapier2d::prelude::*;
 use crate::AppState;
 
 use super::{
-    reflections::ReflectionEvent, AnimationIndices, AnimationTimer, BulletFiredEvent,
-    DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType, Platform, Player,
-    PowerupState,
+    butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType, Platform, Player, PowerupState
 };
 
 pub struct PlayerPlugin;
@@ -89,6 +87,7 @@ pub fn spawn_players(
             jump: KeyCode::W,
             shoot: KeyCode::Space,
             powerup: KeyCode::M,
+            butterfly: KeyCode::F,
         },
         &mut spawn_event_sender,
     );
@@ -105,6 +104,7 @@ pub fn spawn_players(
             jump: KeyCode::Up,
             shoot: KeyCode::Period,
             powerup: KeyCode::ShiftRight,
+            butterfly: KeyCode::Slash,
         },
         &mut spawn_event_sender,
     );
@@ -160,6 +160,8 @@ fn spawn_player(
             id: player_id,
             last_shoot_time: Duration::new(0, 0),
             shoot_interval: Duration::new(0, 100_000_000),
+            last_butterfly_time: Duration::new(0, 0),
+            butterfly_interval: Duration::new(3, 0),
             key_bindings,
             powerup: None,
             is_running: false,
@@ -214,6 +216,24 @@ pub fn player_jump(player: &mut Player, velocity: &mut Velocity) {
     if !player.is_jumping {
         player.is_jumping = true;
         velocity.linvel = Vec2::new(velocity.linvel.x, player.jump_impulse).into();
+    }
+}
+
+pub fn player_butterfly(
+    player: &mut Player,
+    send_butterfly_event: &mut EventWriter<ButterflyEvent>,
+    time: &Res<Time>,
+) {
+    if player.last_butterfly_time + player.butterfly_interval > time.elapsed() {
+        return;
+    } else {
+        let event = ButterflyEvent {
+            player_id: player.id,
+        };
+
+        send_butterfly_event.send(event);
+
+        player.last_butterfly_time = time.elapsed();
     }
 }
 
@@ -386,6 +406,7 @@ pub fn player_controller(
     mut app_state: ResMut<NextState<AppState>>,
     mut send_mirror_use_event: EventWriter<MirrorUseEvent>,
     mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
+    mut send_butterfly_event: EventWriter<ButterflyEvent>,
 ) {
     for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
         player.is_running = false;
@@ -400,6 +421,10 @@ pub fn player_controller(
         }
         if keyboard_input.pressed(player.key_bindings.shoot) {
             player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
+        }
+
+        if keyboard_input.just_pressed(player.key_bindings.butterfly) {
+            player_butterfly(&mut player, &mut send_butterfly_event, &time);
         }
         if keyboard_input.just_pressed(player.key_bindings.powerup) {
             player_powerup_press(&mut player, entity, &mut send_mirror_spawn_event)

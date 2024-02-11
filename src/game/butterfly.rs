@@ -3,14 +3,19 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{AnimationIndices, AnimationTimer, DespawnOnRestart};
+use super::{AnimationIndices, AnimationTimer, DespawnOnRestart, Player};
 
 pub struct ButterflyPlugin;
 
+#[derive(Event)]
+pub struct ButterflyEvent {
+    pub player_id: i32,
+}
 impl Plugin for ButterflyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::InGame), spawn_butterfly)
-        .add_systems(Update, move_butterfly.run_if(in_state(AppState::InGame)))
+        app.add_event::<ButterflyEvent>()
+        .add_systems(OnEnter(AppState::InGame), spawn_butterfly)
+        .add_systems(Update, (move_butterfly, butterfly_use).run_if(in_state(AppState::InGame)))
             // .add_systems(
             //     Update,
             //     (
@@ -21,6 +26,9 @@ impl Plugin for ButterflyPlugin {
             ;
     }
 }
+
+#[derive(Component, Clone)]
+pub struct Butterfly {}
 
 fn spawn_butterfly(
     mut commands: Commands,
@@ -39,6 +47,7 @@ fn spawn_butterfly(
     };
 
     commands.spawn((
+        Butterfly {},
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             sprite: TextureAtlasSprite::new(animation_indices.first),
@@ -69,6 +78,38 @@ fn move_butterfly(time: Res<Time>, mut position: Query<(&mut Direction, &mut Tra
             *logo = Direction::Down;
         } else if transform.translation.y < -20. {
             *logo = Direction::Up;
+        }
+    }
+}
+
+fn reflect_player_through_point(
+    velocity: &mut Velocity,
+    transform: &mut Transform,
+    reflection_point: Transform,
+) {
+    let pos = transform.translation;
+    let reflection_pos = reflection_point.translation;
+    let new_pos = reflection_pos + reflection_pos - pos;
+    transform.translation = new_pos;
+    velocity.linvel = velocity.linvel * -1.0;
+}
+
+fn butterfly_use(
+    butterfly: Query<(&Butterfly, &Transform), Without<Player>>,
+    mut players: Query<(&Player, &mut Transform, &mut Velocity), Without<Butterfly>>,
+    mut butterfly_event: EventReader<ButterflyEvent>,
+) {
+    for event in butterfly_event.read() {
+        for (_butterfly, butterfly_position) in butterfly.iter() {
+            for (player, mut player_position, mut player_velocity) in players.iter_mut() {
+                if (player.id == event.player_id) {
+                    reflect_player_through_point(
+                        &mut player_velocity,
+                        &mut player_position,
+                        *butterfly_position,
+                    )
+                }
+            }
         }
     }
 }

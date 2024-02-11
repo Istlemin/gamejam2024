@@ -38,6 +38,7 @@ pub struct KeyBindings {
     pub jump: KeyCode,
     pub shoot: KeyCode,
     pub powerup: KeyCode,
+    pub butterfly: KeyCode,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -61,6 +62,8 @@ pub struct Player {
     pub id: i32,
     pub last_shoot_time: Duration,
     pub shoot_interval: Duration,
+    pub last_butterfly_time: Duration,
+    pub butterfly_interval: Duration,
     pub key_bindings: KeyBindings,
     pub powerup: Option<PowerupState>,
     pub is_running: bool,
