@@ -51,10 +51,10 @@ pub fn spawn_bullet(
         let velocity;
         match direction {
             GameDirection::Left => {
-                velocity = Vec2::new(-20.0, 0.0);
+                velocity = Vec2::new(-40.0, 0.0);
             }
             GameDirection::Right => {
-                velocity = Vec2::new(20.0, 0.0);
+                velocity = Vec2::new(40.0, 0.0);
             }
         }
         commands
@@ -62,7 +62,7 @@ pub fn spawn_bullet(
                 SpriteBundle {
                     sprite: Sprite {
                         color: materials.bullet_material.into(),
-                        custom_size: Vec2::new(0.4, 0.06).into(),
+                        custom_size: Vec2::new(0.4, 0.1).into(),
                         ..Default::default()
                     },
                     transform: Transform::from_translation(Vec3::new(position.x, position.y, 0.)),
@@ -111,7 +111,7 @@ fn player_hit(
             // debug!("Matched player!");
             if let Ok((_, bullet_velocity)) = bullet_velocities.get(*bullet) {
                 //debug!("Matched bullet!");
-                player_velocity.linvel += bullet_velocity.linvel * 1.5;
+                player_velocity.linvel += bullet_velocity.linvel.normalize() * 10.0;
             }
         }
         commands.entity(*bullet).despawn();
