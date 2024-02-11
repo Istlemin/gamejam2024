@@ -12,7 +12,7 @@ use crate::{
     AppState,
 };
 
-use super::{Player, Powerup, PowerupState};
+use super::{Player, PlayerSpawnEvent, Powerup, PowerupState};
 
 pub struct PowerupsPlugin;
 
@@ -20,6 +20,14 @@ impl Plugin for PowerupsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PowerupSpawnEvent>()
             .add_event::<PowerupCollectionEvent>()
+            .add_systems(
+                OnEnter(AppState::InGame),
+                spawn_powerup_trackers.after(super::player::spawn_players),
+            )
+            .add_systems(
+                Update,
+                check_powerup_color.run_if(in_state(AppState::InGame)),
+            )
             .add_systems(
                 Update,
                 check_powerup_spawn
@@ -136,5 +144,66 @@ const POWERUP_PROBABILITY: f32 = 0.05;
 fn check_powerup_spawn(mut spawn_event: EventWriter<PowerupSpawnEvent>) {
     if random::<f32>() < POWERUP_PROBABILITY {
         spawn_event.send(PowerupSpawnEvent {})
+    }
+}
+
+#[derive(Component)]
+struct PowerupTracker {
+    player: Entity,
+}
+
+fn get_powerup_color(state: Option<PowerupState>) -> Color {
+    match state {
+        None => Color::NONE,
+        Some(PowerupState::Mirror { r#type, .. }) => Color::Rgba {
+            red: if r#type.reflect_bullets { 0.6 } else { 0.0 },
+            green: if r#type.reflect_platforms { 0.8 } else { 0.0 },
+            blue: if r#type.reflect_players { 0.8 } else { 0.0 },
+            alpha: 1.0,
+        },
+    }
+}
+
+fn check_powerup_color(
+    mut query: Query<(&mut BackgroundColor, &PowerupTracker)>,
+    players: Query<&Player>,
+) {
+    query.for_each_mut(|(mut color, powerup_tracker)| {
+        if let Ok(player) = players.get(powerup_tracker.player) {
+            color.0 = get_powerup_color(player.powerup);
+        }
+    });
+}
+
+fn spawn_powerup_trackers(
+    mut commands: Commands,
+    mut player_spawn_event: EventReader<PlayerSpawnEvent>,
+) {
+    for PlayerSpawnEvent { player_id, player } in player_spawn_event.read() {
+        info!("Creating for player {:?}", player_id);
+
+        let mut style = Style {
+            width: Val::VMin(5.0),
+            height: Val::VMin(5.0),
+            position_type: PositionType::Absolute,
+            bottom: Val::Percent(5.0),
+            ..default()
+        };
+
+        if *player_id == 0 {
+            style.left = Val::Percent(7.5);
+        } else {
+            style.right = Val::Percent(7.5);
+        }
+
+        commands.spawn((
+            NodeBundle {
+                style,
+                background_color: Color::NONE.into(),
+                ..default()
+            },
+            PowerupTracker { player: *player },
+            DespawnOnRestart {},
+        ));
     }
 }

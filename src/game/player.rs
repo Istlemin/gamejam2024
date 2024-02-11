@@ -6,7 +6,8 @@ use bevy_rapier2d::prelude::*;
 use crate::{geometry::LineSegment, AppState};
 
 use super::{
-    reflections::MirrorUseEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, Player, PowerupState
+    reflections::MirrorUseEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone,
+    DespawnOnRestart, GameDirection, KeyBindings, Mirror, Player, PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -20,6 +21,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GameOverEvent>()
             .add_event::<MirrorSpawnEvent>()
+            .add_event::<PlayerSpawnEvent>()
             .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
@@ -64,28 +66,15 @@ fn animate_sprite(
     }
 }
 
-fn spawn_players(
+pub fn spawn_players(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut spawn_event_sender: EventWriter<PlayerSpawnEvent>,
 ) {
+    info!("Spawning Players");
     spawn_player(
         0,
-        Transform::from_xyz(1.0, 7.0, 0.0),
-        Color::rgb(0.969, 0.200, 0.300),
-        &mut commands,
-        &asset_server,
-        &mut texture_atlases,
-        KeyBindings {
-            left: KeyCode::Left,
-            right: KeyCode::Right,
-            jump: KeyCode::Up,
-            shoot: KeyCode::Period,
-            powerup: KeyCode::ShiftRight,
-        },
-    );
-    spawn_player(
-        1,
         Transform::from_xyz(-1.0, 7.0, 0.0),
         Color::rgb(0.300, 0.200, 0.900),
         &mut commands,
@@ -98,7 +87,30 @@ fn spawn_players(
             shoot: KeyCode::Space,
             powerup: KeyCode::M,
         },
+        &mut spawn_event_sender,
     );
+    spawn_player(
+        1,
+        Transform::from_xyz(1.0, 7.0, 0.0),
+        Color::rgb(0.969, 0.200, 0.300),
+        &mut commands,
+        &asset_server,
+        &mut texture_atlases,
+        KeyBindings {
+            left: KeyCode::Left,
+            right: KeyCode::Right,
+            jump: KeyCode::Up,
+            shoot: KeyCode::Period,
+            powerup: KeyCode::ShiftRight,
+        },
+        &mut spawn_event_sender,
+    );
+}
+
+#[derive(Event)]
+pub struct PlayerSpawnEvent {
+    pub player_id: i32,
+    pub player: Entity,
 }
 
 fn spawn_player(
@@ -109,6 +121,7 @@ fn spawn_player(
     asset_server: &Res<AssetServer>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     key_bindings: KeyBindings,
+    spawn_event_sender: &mut EventWriter<PlayerSpawnEvent>,
 ) {
     let texture_handle = asset_server.load("textures/gabe-idle-run.png");
     let texture_atlas =
@@ -120,9 +133,9 @@ fn spawn_player(
         x: 0.125,
         y: 0.125,
         z: 0.125,
-    };                                     
+    };
 
-    commands.spawn((
+    let entity = commands.spawn((
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             sprite: TextureAtlasSprite::new(animation_indices.first),
@@ -154,6 +167,10 @@ fn spawn_player(
         },
         DespawnOnRestart {},
     ));
+    spawn_event_sender.send(PlayerSpawnEvent {
+        player_id,
+        player: entity.id(),
+    })
 }
 
 fn camera_follow_player(
@@ -431,7 +448,6 @@ fn check_death_collision(
     //     }
     // }
 }
-
 
 fn reflect_player_through_point(mut transform: Transform, reflection_point: Transform) {
     let pos = transform.translation;
