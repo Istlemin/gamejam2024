@@ -37,7 +37,8 @@ pub fn run() {
             .set(LogPlugin {
                 filter: "info,wgpu_core=warn,wgpu_hal=warn,gamejam2024=debug".into(),
                 level: bevy::log::Level::DEBUG,
-            }),
+            })
+            .set(ImagePlugin::default_nearest()),
     )
     .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
     .add_plugins((GamePlugin, MenuPlugin))
