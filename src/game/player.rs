@@ -6,7 +6,9 @@ use bevy_rapier2d::prelude::*;
 use crate::AppState;
 
 use super::{
-    butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType, Platform, Player, PowerupState
+    butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer,
+    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType,
+    Platform, Player, PlayerControls, PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -72,6 +74,7 @@ pub fn spawn_players(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut spawn_event_sender: EventWriter<PlayerSpawnEvent>,
+    controls: Res<PlayerControls>,
 ) {
     info!("Spawning Players");
     spawn_player(
@@ -81,14 +84,7 @@ pub fn spawn_players(
         &mut commands,
         &asset_server,
         &mut texture_atlases,
-        KeyBindings {
-            left: KeyCode::A,
-            right: KeyCode::D,
-            jump: KeyCode::W,
-            shoot: KeyCode::Space,
-            powerup: KeyCode::M,
-            butterfly: KeyCode::F,
-        },
+        controls.controls[0],
         &mut spawn_event_sender,
     );
     spawn_player(
@@ -98,14 +94,7 @@ pub fn spawn_players(
         &mut commands,
         &asset_server,
         &mut texture_atlases,
-        KeyBindings {
-            left: KeyCode::Left,
-            right: KeyCode::Right,
-            jump: KeyCode::Up,
-            shoot: KeyCode::Period,
-            powerup: KeyCode::ShiftRight,
-            butterfly: KeyCode::Slash,
-        },
+        controls.controls[1],
         &mut spawn_event_sender,
     );
 }

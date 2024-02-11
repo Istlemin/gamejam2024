@@ -49,6 +49,7 @@ pub fn run() {
                 jump: KeyCode::W,
                 shoot: KeyCode::Space,
                 powerup: KeyCode::M,
+                butterfly: KeyCode::F,
             },
             KeyBindings {
                 left: KeyCode::Left,
@@ -56,6 +57,7 @@ pub fn run() {
                 jump: KeyCode::Up,
                 shoot: KeyCode::Period,
                 powerup: KeyCode::ShiftRight,
+                butterfly: KeyCode::Slash,
             },
         ],
     })
