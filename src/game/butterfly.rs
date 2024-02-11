@@ -67,18 +67,14 @@ enum Direction {
     Down,
 }
 
-fn move_butterfly(time: Res<Time>, mut position: Query<(&mut Direction, &mut Transform)>) {
-    for (mut logo, mut transform) in &mut position {
-        match *logo {
-            Direction::Up => transform.translation.y += 3. * time.delta_seconds(),
-            Direction::Down => transform.translation.y -= 3. * time.delta_seconds(),
-        }
-
-        if transform.translation.y > 20. {
-            *logo = Direction::Down;
-        } else if transform.translation.y < -20. {
-            *logo = Direction::Up;
-        }
+fn move_butterfly(time: Res<Time>, mut position: Query<(&Butterfly, &mut Transform)>) {
+    for (_butterfly, mut transform) in &mut position {
+        let t = time.elapsed_seconds() / 3.;
+        debug!("{:?}", t);
+        let scale = 20.;
+        transform.translation.x = scale * t.cos() * t.cos().abs();
+        transform.translation.y = scale * 0.2 * (2. * t).sin();
+        transform.rotation = Quat::from_rotation_z(2. * t.sin() * t.sin().abs())
     }
 }
 
