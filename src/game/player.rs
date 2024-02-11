@@ -1,16 +1,13 @@
-use std::{ops::Add, time::Duration};
+use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{game::reflections::spawn_mirror_effect, geometry::LineSegment, AppState};
+use crate::{geometry::LineSegment, AppState};
 
 use super::{
-    reflections::{
-        BulletMirrorReflectionEvent, PlatformsMirrorReflectionEvent, PlayerMirrorReflectionEvent,
-    },
-    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials, Mirror,
-    MirrorType, Player, PowerupState,
+    reflections::MirrorUseEvent, BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection,
+    KeyBindings, Mirror, Player, PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -236,11 +233,8 @@ pub fn player_use_powerup(
     player: &mut Player,
     player_entity: Entity,
     transform: &mut Transform,
-    send_bullet_mirref_event: &mut EventWriter<BulletMirrorReflectionEvent>,
-    send_player_mirref_event: &mut EventWriter<PlayerMirrorReflectionEvent>,
-    send_platforms_mirref_event: &mut EventWriter<PlatformsMirrorReflectionEvent>,
     send_mirror_spawn_event: &mut EventWriter<MirrorSpawnEvent>,
-    commands: &mut Commands,
+    send_mirror_use_event: &mut EventWriter<MirrorUseEvent>,
 ) {
     player.powerup = if let Some(powerup) = player.powerup {
         debug!("Powerup activated");
@@ -273,17 +267,10 @@ pub fn player_use_powerup(
                 point1: Some(p1),
                 point2: Some(p2),
             } => {
-                let mirror = LineSegment::new(p1, p2);
-                if r#type.reflect_bullets {
-                    send_bullet_mirref_event.send(BulletMirrorReflectionEvent { mirror });
-                }
-                if r#type.reflect_platforms {
-                    send_platforms_mirref_event.send(PlatformsMirrorReflectionEvent { mirror });
-                }
-                if r#type.reflect_players {
-                    send_player_mirref_event.send(PlayerMirrorReflectionEvent { mirror });
-                }
-                spawn_mirror_effect(commands, mirror);
+                send_mirror_use_event.send(MirrorUseEvent {
+                    mirror: LineSegment::new(p1, p2),
+                    mirror_type: r#type,
+                });
                 None
             }
         }
@@ -364,11 +351,8 @@ pub fn player_controller(
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
     mut app_state: ResMut<NextState<AppState>>,
-    mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
-    mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
-    mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
+    mut send_mirror_use_event: EventWriter<MirrorUseEvent>,
     mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
-    mut commands: Commands,
 ) {
     for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
         if keyboard_input.pressed(player.key_bindings.left) {
@@ -388,11 +372,8 @@ pub fn player_controller(
                 &mut player,
                 entity,
                 &mut transform,
-                &mut send_bullet_mirref_event,
-                &mut send_player_mirref_event,
-                &mut send_platforms_mirref_event,
                 &mut send_mirror_spawn_event,
-                &mut &mut commands,
+                &mut send_mirror_use_event,
             )
         }
     }

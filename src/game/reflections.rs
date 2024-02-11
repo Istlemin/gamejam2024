@@ -8,7 +8,7 @@ use crate::{
     AppState,
 };
 
-use super::{spawn_polygon, Bullet, Materials, MirrorAnimation, Platform, Player};
+use super::{spawn_polygon, Bullet, Materials, MirrorAnimation, MirrorType, Platform, Player};
 
 pub struct ReflectionsPlugin;
 
@@ -17,6 +17,7 @@ impl Plugin for ReflectionsPlugin {
         app.add_event::<BulletMirrorReflectionEvent>()
             .add_event::<PlatformsMirrorReflectionEvent>()
             .add_event::<PlayerMirrorReflectionEvent>()
+            .add_event::<MirrorUseEvent>()
             .add_systems(
                 Update,
                 (
@@ -24,6 +25,7 @@ impl Plugin for ReflectionsPlugin {
                     mirror_reflect_bullets,
                     mirror_reflect_players,
                     animate_mirror_effect,
+                    mirror_use,
                 )
                     .run_if(in_state(AppState::InGame)),
             );
@@ -134,7 +136,7 @@ fn mirror_reflect_players(
     }
 }
 
-pub fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
+fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -153,6 +155,37 @@ pub fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
             timer: Timer::new(Duration::from_millis(500), TimerMode::Once),
         },
     ));
+}
+
+#[derive(Event)]
+pub struct MirrorUseEvent {
+    pub mirror: LineSegment,
+    pub mirror_type: MirrorType,
+}
+
+fn mirror_use(
+    mut mirror_use_event_reader: EventReader<MirrorUseEvent>,
+    mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
+    mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
+    mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
+    mut commands: Commands,
+) {
+    for MirrorUseEvent {
+        mirror,
+        mirror_type,
+    } in mirror_use_event_reader.read()
+    {
+        if mirror_type.reflect_bullets {
+            send_bullet_mirref_event.send(BulletMirrorReflectionEvent { mirror: *mirror });
+        }
+        if mirror_type.reflect_platforms {
+            send_platforms_mirref_event.send(PlatformsMirrorReflectionEvent { mirror: *mirror });
+        }
+        if mirror_type.reflect_players {
+            send_player_mirref_event.send(PlayerMirrorReflectionEvent { mirror: *mirror });
+        }
+        spawn_mirror_effect(&mut commands, *mirror);
+    }
 }
 
 fn animate_mirror_effect(
