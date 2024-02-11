@@ -112,8 +112,7 @@ fn handle_powerup_collection(
                 player.powerup = Some(match *powerup {
                     Powerup::Mirror(mirror_type) => PowerupState::Mirror {
                         r#type: mirror_type,
-                        point1: None,
-                        point2: None,
+                        placed: false,
                     },
                 });
             }

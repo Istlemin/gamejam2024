@@ -20,7 +20,7 @@ impl Plugin for ReflectionsPlugin {
         app.add_event::<BulletMirrorReflectionEvent>()
             .add_event::<PlatformsMirrorReflectionEvent>()
             .add_event::<PlayerMirrorReflectionEvent>()
-            .add_event::<MirrorUseEvent>()
+            .add_event::<ReflectionEvent>()
             .add_systems(
                 Update,
                 (
@@ -162,22 +162,23 @@ fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
 }
 
 #[derive(Event)]
-pub struct MirrorUseEvent {
-    pub mirror: LineSegment,
+
+pub struct ReflectionEvent {
     pub mirror_type: MirrorType,
+    pub mirror: LineSegment,
 }
 
 fn mirror_use(
-    mut mirror_use_event_reader: EventReader<MirrorUseEvent>,
+    mut reflection_event_reader: EventReader<ReflectionEvent>,
     mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
     mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
     mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
     mut commands: Commands,
 ) {
-    for MirrorUseEvent {
+    for ReflectionEvent {
         mirror,
         mirror_type,
-    } in mirror_use_event_reader.read()
+    } in reflection_event_reader.read()
     {
         if mirror_type.reflect_bullets {
             send_bullet_mirref_event.send(BulletMirrorReflectionEvent { mirror: *mirror });

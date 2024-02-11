@@ -1,13 +1,14 @@
 use std::time::Duration;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, time::Stopwatch};
 use bevy_rapier2d::prelude::*;
 
-use crate::{geometry::LineSegment, AppState};
+use crate::AppState;
 
 use super::{
-    reflections::MirrorUseEvent, AnimationIndices, AnimationTimer, BulletFiredEvent, DeathZone,
-    DespawnOnRestart, GameDirection, KeyBindings, Mirror, Platform, Player, PowerupState,
+    reflections::ReflectionEvent, AnimationIndices, AnimationTimer, BulletFiredEvent,
+    DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType, Platform, Player,
+    PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -22,6 +23,7 @@ impl Plugin for PlayerPlugin {
         app.add_event::<GameOverEvent>()
             .add_event::<MirrorSpawnEvent>()
             .add_event::<PlayerSpawnEvent>()
+            .add_event::<MirrorUseEvent>()
             .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
@@ -34,6 +36,7 @@ impl Plugin for PlayerPlugin {
                         animate_sprite,
                         draw_mirrors,
                         spawn_mirror,
+                        use_mirror,
                     )
                         .run_if(in_state(AppState::InGame)),
                 ),
@@ -244,54 +247,62 @@ pub fn player_shoot(
     }
 }
 
-pub fn player_use_powerup(
+pub fn player_powerup_press(
     player: &mut Player,
     player_entity: Entity,
-    transform: &mut Transform,
     send_mirror_spawn_event: &mut EventWriter<MirrorSpawnEvent>,
-    send_mirror_use_event: &mut EventWriter<MirrorUseEvent>,
 ) {
-    player.powerup = if let Some(powerup) = player.powerup {
+    player.powerup = if let Some(powerup) = &player.powerup {
         debug!("Powerup activated");
         match powerup {
             PowerupState::Mirror {
                 r#type,
-                point1: None,
-                point2: _,
+                placed: false,
             } => {
                 send_mirror_spawn_event.send(MirrorSpawnEvent {
                     owner: player_entity,
                 });
                 Some(PowerupState::Mirror {
-                    r#type,
-                    point1: Some(transform.translation.xy()),
-                    point2: None,
+                    r#type: *r#type,
+                    placed: true,
                 })
             }
-            PowerupState::Mirror {
-                r#type,
-                point1: Some(p1),
-                point2: None,
-            } => Some(PowerupState::Mirror {
-                r#type,
-                point1: Some(p1),
-                point2: Some(transform.translation.xy()),
-            }),
-            PowerupState::Mirror {
-                r#type,
-                point1: Some(p1),
-                point2: Some(p2),
-            } => {
-                send_mirror_use_event.send(MirrorUseEvent {
-                    mirror: LineSegment::new(p1, p2),
-                    mirror_type: r#type,
-                });
-                None
-            }
+            state => Some(*state),
         }
     } else {
         None
     };
+}
+
+pub fn player_powerup_release(
+    player: &mut Player,
+    player_entity: Entity,
+    send_mirror_use_event: &mut EventWriter<MirrorUseEvent>,
+) {
+    player.powerup = if let Some(powerup) = player.powerup {
+        debug!("Powerup released");
+        match powerup {
+            PowerupState::Mirror {
+                r#type,
+                placed: true,
+            } => {
+                send_mirror_use_event.send(MirrorUseEvent {
+                    owner: player_entity,
+                    mirror_type: r#type,
+                });
+                None
+            }
+            state => Some(state),
+        }
+    } else {
+        None
+    }
+}
+
+#[derive(Event)]
+pub struct MirrorUseEvent {
+    pub owner: Entity,
+    pub mirror_type: MirrorType,
 }
 
 #[derive(Event)]
@@ -299,59 +310,65 @@ pub struct MirrorSpawnEvent {
     pub owner: Entity,
 }
 
+fn use_mirror(
+    mut commands: Commands,
+    mut events: EventReader<MirrorUseEvent>,
+    mut reflection_events_send: EventWriter<ReflectionEvent>,
+    mirrors: Query<(Entity, &Mirror)>,
+) {
+    for MirrorUseEvent { owner, mirror_type } in events.read() {
+        for (entity, mirror) in mirrors.iter().filter(|(_, mirror)| mirror.owner == *owner) {
+            reflection_events_send.send(ReflectionEvent {
+                mirror_type: *mirror_type,
+                mirror: mirror.get_line(),
+            });
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
 fn spawn_mirror(
     mut commands: Commands,
     mut events: EventReader<MirrorSpawnEvent>,
+    players: Query<&Transform>,
     asset_server: Res<AssetServer>,
 ) {
     for MirrorSpawnEvent { owner } in events.read() {
-        commands.spawn((
-            SpriteBundle {
-                texture: asset_server.load("textures/mirror.png"),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(0.7, 1.5)),
+        if let Ok(transform) = players.get(*owner) {
+            commands.spawn((
+                SpriteBundle {
+                    texture: asset_server.load("textures/mirror.png"),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(0.7, 1.5)),
+                        ..default()
+                    },
                     ..default()
                 },
-                ..default()
-            },
-            Mirror { owner: *owner },
-            DespawnOnRestart {},
-        ));
+                Mirror {
+                    owner: *owner,
+                    time: Stopwatch::new(),
+                    position: transform.translation.xy(),
+                },
+                DespawnOnRestart {},
+            ));
+        }
     }
 }
 
 fn draw_mirrors(
-    mut mirrors: Query<(Entity, &Mirror, &mut Transform), Without<Player>>,
-    players: Query<(&Player, &Transform)>,
-    mut commands: Commands,
+    mut mirrors: Query<(&mut Mirror, &mut Transform), Without<Player>>,
+    time: Res<Time>,
 ) {
-    for (entity, mirror, mut transform) in mirrors.iter_mut() {
-        let mirror = if let Ok((player, player_transform)) = players.get(mirror.owner) {
-            match player.powerup {
-                Some(PowerupState::Mirror {
-                    point1: Some(p1),
-                    point2,
-                    ..
-                }) => Some(LineSegment::new(
-                    p1,
-                    point2.unwrap_or(player_transform.translation.xy()),
-                )),
-                _ => None,
-            }
-        } else {
-            None
-        };
+    for (mut mirror, mut transform) in mirrors.iter_mut() {
+        mirror.time.tick(time.delta());
+        let mirror = mirror.get_line();
 
-        if let Some(mirror) = mirror {
-            transform.translation = mirror.mid_point().extend(0.0);
-            transform.rotation = Quat::from_axis_angle(
-                Vec3::Z,
-                Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
-            );
-            transform.scale = Vec3::new(1.0, mirror.length(), 1.0);
-        } else {
-            commands.entity(entity).despawn();
-        }
+        transform.translation = mirror.mid_point().extend(0.0);
+        transform.rotation = Quat::from_axis_angle(
+            Vec3::Z,
+            Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
+        );
+        transform.scale = Vec3::new(1.0, mirror.length(), 1.0);
     }
 }
 
@@ -385,13 +402,10 @@ pub fn player_controller(
             player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
         }
         if keyboard_input.just_pressed(player.key_bindings.powerup) {
-            player_use_powerup(
-                &mut player,
-                entity,
-                &mut transform,
-                &mut send_mirror_spawn_event,
-                &mut send_mirror_use_event,
-            )
+            player_powerup_press(&mut player, entity, &mut send_mirror_spawn_event)
+        }
+        if keyboard_input.just_released(player.key_bindings.powerup) {
+            player_powerup_release(&mut player, entity, &mut send_mirror_use_event)
         }
     }
     if keyboard_input.just_pressed(KeyCode::R) {

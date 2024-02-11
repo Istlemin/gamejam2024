@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, time::Stopwatch};
 
-use crate::geometry::Polygon;
+use crate::geometry::{LineSegment, Polygon};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct PlatformDescription {
@@ -49,14 +49,10 @@ pub struct MirrorType {
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum PowerupState {
-    Mirror {
-        r#type: MirrorType,
-        point1: Option<Vec2>,
-        point2: Option<Vec2>,
-    },
+    Mirror { r#type: MirrorType, placed: bool },
 }
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Clone)]
 pub struct Player {
     pub speed: f32,
     pub facing_direction: GameDirection,
@@ -123,7 +119,20 @@ pub struct MirrorAnimation {
     pub timer: Timer,
 }
 
+const MIRROR_ANGULAR_VEL: f32 = 3.0;
+const MIRROR_HALF_HEIGHT: f32 = 2.0;
+
 #[derive(Component)]
 pub struct Mirror {
     pub owner: Entity,
+    pub time: Stopwatch,
+    pub position: Vec2,
+}
+
+impl Mirror {
+    pub fn get_line(&self) -> LineSegment {
+        let offset =
+            Vec2::from_angle(self.time.elapsed_secs() * MIRROR_ANGULAR_VEL) * MIRROR_HALF_HEIGHT;
+        LineSegment::new(self.position + offset, self.position - offset)
+    }
 }
