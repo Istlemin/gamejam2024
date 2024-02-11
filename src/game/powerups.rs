@@ -8,7 +8,7 @@ use bevy_rapier2d::{
 use rand::prelude::*;
 
 use crate::{
-    game::{DespawnOnRestart, MirrorType},
+    game::{DespawnOnRestart, LifeTimer, MirrorType},
     AppState,
 };
 
@@ -77,6 +77,7 @@ fn spawn_powerup(
             Collider::ball(0.5),
             ActiveEvents::COLLISION_EVENTS,
             DespawnOnRestart {},
+            LifeTimer(Timer::from_seconds(10.0, TimerMode::Once)),
             Powerup::Mirror(MirrorType {
                 reflect_bullets: (reflections & 1) > 0,
                 reflect_players: (reflections & 2) > 0,
