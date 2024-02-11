@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{geometry::Polygon, AppState};
 
-use super::{DespawnOnRestart, Materials, Platform};
+use super::{DeathZone, DespawnOnRestart, Materials, Platform};
 
 pub struct MapPlugin;
 
@@ -26,6 +26,8 @@ pub fn spawn_floor(
         &materials,
         &mut meshes,
     );
+
+    add_death_zone(&mut commands, &materials, -20.0);
 }
 
 pub fn spawn_polygon(
@@ -63,4 +65,25 @@ pub fn spawn_platform(
         Vec2::new(-5., 0.5),
     ]);
     spawn_polygon(location, poly, commands, materials, meshes);
+}
+
+fn add_death_zone(commands: &mut Commands, materials: &Res<Materials>, y: f32) {
+    let width = 100.;
+    let height = 10.0;
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: materials.death_zone_material.into(),
+                custom_size: Vec2::new(width, height).into(),
+                ..Default::default()
+            },
+            transform: Transform::from_translation(Vec3::new(0.0, y, 0.)),
+            ..Default::default()
+        },
+        RigidBody::Fixed,
+        Collider::cuboid(width / 2.0, height / 2.0),
+        ActiveEvents::COLLISION_EVENTS,
+        DeathZone {},
+        DespawnOnRestart {},
+    ));
 }

@@ -31,7 +31,17 @@ impl Plugin for GamePlugin {
             .add_plugins(PlayerPlugin)
             .add_plugins(ReflectionsPlugin)
             .add_systems(PreStartup, setup)
+            .add_systems(Update, game_over)
             .add_systems(OnExit(AppState::InGame), cleanup);
+    }
+}
+
+fn game_over(
+    mut read_game_over_event: EventReader<GameOverEvent>,
+    mut app_state: ResMut<NextState<AppState>>,
+) {
+    for GameOverEvent { lost_player } in read_game_over_event.read() {
+        app_state.set(AppState::MainMenu);
     }
 }
 
@@ -49,6 +59,7 @@ fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.insert_resource(Materials {
         player_material: Color::rgb(0.969, 0.769, 0.784).into(),
         floor_material: materials.add(Color::rgb(0.7, 0.7, 0.7).into()),
+        death_zone_material: Color::rgb(0.5, 0.0, 0.).into(),
         bullet_material: Color::rgb(0.8, 0.8, 0.).into(),
     });
     commands.spawn(new_camera_2d());

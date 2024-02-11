@@ -9,6 +9,7 @@ pub struct Materials {
     pub player_material: Color,
     pub floor_material: Handle<ColorMaterial>,
     pub bullet_material: Color,
+    pub death_zone_material: Color,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -25,7 +26,7 @@ pub struct KeyBindings {
     pub shoot: KeyCode,
 }
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 
 pub struct Player {
     pub speed: f32,
@@ -48,6 +49,9 @@ pub struct DespawnOnRestart {}
 pub struct Platform {
     polygon: Polygon,
 }
+
+#[derive(Component)]
+pub struct DeathZone {}
 
 impl Platform {
     pub fn get_transformed_polygon(&self, transform: &Transform) -> Polygon {

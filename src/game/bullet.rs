@@ -11,6 +11,12 @@ pub struct BulletFiredEvent {
     pub direction: GameDirection,
 }
 
+#[derive(Event)]
+pub struct BulletHitEvent {
+    pub target: Entity,
+    pub bullet: Entity,
+}
+
 #[derive(Component)]
 struct BulletLifeTimer(Timer);
 
@@ -18,14 +24,17 @@ pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<BulletFiredEvent>().add_systems(
-            Update,
-            (
-                spawn_bullet.run_if(in_state(AppState::InGame)),
-                check_player_hit.run_if(in_state(AppState::InGame)),
-                tick_bullet_timers.run_if(in_state(AppState::InGame)),
-            ),
-        );
+        app.add_event::<BulletFiredEvent>()
+            .add_event::<BulletHitEvent>()
+            .add_systems(
+                Update,
+                (
+                    spawn_bullet.run_if(in_state(AppState::InGame)),
+                    check_player_hit.run_if(in_state(AppState::InGame)),
+                    player_hit.run_if(in_state(AppState::InGame)),
+                    tick_bullet_timers.run_if(in_state(AppState::InGame)),
+                ),
+            );
     }
 }
 
@@ -90,8 +99,21 @@ fn tick_bullet_timers(
     }
 }
 
-fn player_hit(commands: &mut Commands, player_entity: Entity, bullet_entity: Entity) {
-    commands.entity(bullet_entity).despawn();
+fn player_hit(
+    mut commands: Commands,
+    mut player_velocities: Query<&mut Velocity, (With<Player>, Without<Player>)>,
+    mut bullet_velocities: Query<&Velocity, (With<Bullet>, Without<Player>)>,
+    mut ev_hit: EventReader<BulletHitEvent>,
+) {
+    for BulletHitEvent { target, bullet } in ev_hit.read() {
+        debug!("Bullet hit!");
+        if let Ok(mut player_velocity) = player_velocities.get_mut(*target) {
+            if let Ok(bullet_velocity) = bullet_velocities.get_mut(*target) {
+                player_velocity.linvel += bullet_velocity.linvel * 4.0;
+            }
+        }
+        commands.entity(*bullet).despawn();
+    }
 }
 
 pub fn check_player_hit(
@@ -99,6 +121,7 @@ pub fn check_player_hit(
     players: Query<(Entity, &Player)>,
     bullets: Query<(Entity, &Bullet)>,
     mut contact_events: EventReader<CollisionEvent>,
+    mut send_hit_event: EventWriter<BulletHitEvent>,
 ) {
     for contact_event in contact_events.read() {
         if let CollisionEvent::Started(h1, h2, _) = contact_event {
@@ -106,7 +129,12 @@ pub fn check_player_hit(
             // let player_result2 = players.get_mut(*h2);
             if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
                 if let Ok((bullet_entity, bullet)) = bullets.get(*h1).or(bullets.get(*h2)) {
-                    player_hit(&mut commands, player_entity, bullet_entity);
+                    send_hit_event.send(BulletHitEvent {
+                        target: player_entity,
+                        bullet: bullet_entity,
+                    });
+                    debug!("Sending bullet event!");
+                    //player_hit(&mut commands, player_entity, bullet_entity);
                 }
             }
         }

@@ -5,19 +5,28 @@ use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
 
-use super::{BulletFiredEvent, DespawnOnRestart, GameDirection, KeyBindings, Materials, Player};
+use super::{
+    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials, Player,
+};
 
 pub struct PlayerPlugin;
 
+#[derive(Event)]
+pub struct GameOverEvent {
+    pub lost_player: i32,
+}
+
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::InGame), spawn_players)
+        app.add_event::<GameOverEvent>()
+            .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
                 (
                     //camera_follow_player.run_if(in_state(AppState::InGame)),
                     player_controller.run_if(in_state(AppState::InGame)),
                     jump_reset.run_if(in_state(AppState::InGame)),
+                    check_death_collision.run_if(in_state(AppState::InGame)),
                 ),
             );
     }
@@ -185,6 +194,27 @@ fn set_jumping_false_if_touching_floor(
     if let CollisionEvent::Started(h1, h2, _) = event {
         if h1 == &player_entity || h2 == &player_entity {
             player.is_jumping = false
+        }
+    }
+}
+
+fn check_death_collision(
+    mut players: Query<(Entity, &Player)>,
+    mut death_zones: Query<(Entity, &DeathZone)>,
+    mut contact_events: EventReader<CollisionEvent>,
+    mut send_game_over_event: EventWriter<GameOverEvent>,
+) {
+    for contact_event in contact_events.read() {
+        if let CollisionEvent::Started(h1, h2, _) = contact_event {
+            if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
+                if let Ok((death_zones_entity, death_zones)) =
+                    death_zones.get(*h1).or(death_zones.get(*h2))
+                {
+                    send_game_over_event.send(GameOverEvent {
+                        lost_player: player.id,
+                    })
+                }
+            }
         }
     }
 }
