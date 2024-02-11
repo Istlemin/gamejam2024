@@ -83,6 +83,7 @@ impl Platform {
                 .iter()
                 .map(|pt| transform.transform_point(pt.extend(0.0)).xy())
                 .collect(),
+            self.polygon.texture_coords().clone(),
         )
     }
 

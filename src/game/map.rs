@@ -5,6 +5,9 @@ use crate::{geometry::Polygon, AppState};
 
 use super::{DeathZone, DespawnOnRestart, Materials, Platform};
 
+const GRASS_TILE_HEIGHT: f32 = 3.0;
+const GRASS_TILE_WIDTH: f32 = 1.5;
+
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -18,10 +21,26 @@ pub fn spawn_floor(
     materials: Res<Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    spawn_platform(Vec2::new(0.0, 0.0), &mut commands, &materials, &mut meshes);
-    spawn_platform(Vec2::new(15.0, 5.0), &mut commands, &materials, &mut meshes);
+    spawn_platform(
+        Vec2::new(0.0, 0.0),
+        10.0,
+        1.0,
+        &mut commands,
+        &materials,
+        &mut meshes,
+    );
+    spawn_platform(
+        Vec2::new(15.0, 5.0),
+        10.0,
+        1.0,
+        &mut commands,
+        &materials,
+        &mut meshes,
+    );
     spawn_platform(
         Vec2::new(15.0, -5.0),
+        10.0,
+        1.0,
         &mut commands,
         &materials,
         &mut meshes,
@@ -54,16 +73,31 @@ pub fn spawn_polygon(
 
 pub fn spawn_platform(
     location: Vec2,
+    width: f32,
+    height: f32,
     commands: &mut Commands,
     materials: &Res<Materials>,
     meshes: &mut ResMut<Assets<Mesh>>,
 ) {
-    let poly = Polygon::new(vec![
-        Vec2::new(-5., -0.5),
-        Vec2::new(5., -0.5),
-        Vec2::new(5., 0.5),
-        Vec2::new(-5., 0.5),
-    ]);
+    let half_width = width / 2.0;
+    let half_height = height / 2.0;
+    let tex_width = width / GRASS_TILE_WIDTH;
+    let tex_height = height / GRASS_TILE_HEIGHT;
+
+    let poly = Polygon::new(
+        vec![
+            Vec2::new(-half_width, -half_height),
+            Vec2::new(half_width, -half_height),
+            Vec2::new(half_width, half_height),
+            Vec2::new(-half_width, half_height),
+        ],
+        vec![
+            Vec2::new(0.0, tex_height),
+            Vec2::new(tex_width, tex_height),
+            Vec2::new(tex_width, 0.0),
+            Vec2::new(0.0, 0.0),
+        ],
+    );
     spawn_polygon(location, poly, commands, materials, meshes);
 }
 

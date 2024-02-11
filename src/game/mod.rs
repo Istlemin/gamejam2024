@@ -17,7 +17,12 @@ use bullet::*;
 mod powerups;
 use powerups::*;
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    render::texture::{
+        ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor,
+    },
+};
 use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
@@ -55,14 +60,29 @@ fn cleanup(to_despawn: Query<Entity, With<DespawnOnRestart>>, mut commands: Comm
     }
 }
 
-fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn setup(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
+    let sampler_desc = ImageSamplerDescriptor {
+        address_mode_u: ImageAddressMode::Repeat,
+        ..Default::default()
+    };
+
+    let settings = move |s: &mut ImageLoaderSettings| {
+        s.sampler = ImageSampler::Descriptor(sampler_desc.clone());
+    };
+
+    let floor_texture: Handle<Image> =
+        asset_server.load_with_settings("textures/grass.png", settings);
     commands.insert_resource(RapierConfiguration {
         gravity: Vec2 { x: 0.0, y: -70.0 },
         ..Default::default()
     });
     commands.insert_resource(Materials {
         player_material: Color::rgb(0.969, 0.769, 0.784).into(),
-        floor_material: materials.add(Color::rgb(0.7, 0.7, 0.7).into()),
+        floor_material: materials.add(floor_texture.into()),
         death_zone_material: Color::rgb(0.5, 0.0, 0.).into(),
         bullet_material: Color::rgb(0.8, 0.8, 0.).into(),
     });

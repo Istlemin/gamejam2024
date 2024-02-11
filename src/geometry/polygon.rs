@@ -27,10 +27,7 @@ fn signed_area(vertices: &Vec<Point>) -> f32 {
 }
 
 impl Polygon {
-    pub fn new_with_texture_coords(
-        mut vertices: Vec<Point>,
-        mut texture_coords: Vec<Point>,
-    ) -> Polygon {
+    pub fn new(mut vertices: Vec<Point>, mut texture_coords: Vec<Point>) -> Polygon {
         if signed_area(&vertices) < 0.0 {
             vertices.reverse();
             texture_coords.reverse();
@@ -40,10 +37,6 @@ impl Polygon {
             vertices,
             texture_coords,
         }
-    }
-
-    pub fn new(vertices: Vec<Point>) -> Polygon {
-        Polygon::new_with_texture_coords(vertices.clone(), vertices)
     }
 
     pub fn vertices(&self) -> &Vec<Point> {
