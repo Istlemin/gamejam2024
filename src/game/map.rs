@@ -3,7 +3,9 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{geometry::Polygon, AppState};
 
-use super::{DeathZone, DespawnOnRestart, Materials, Platform};
+use super::{
+    DeathZone, DespawnOnRestart, MapDescription, Materials, Platform, PlatformDescription,
+};
 
 const GRASS_TILE_HEIGHT: f32 = 3.0;
 const GRASS_TILE_WIDTH: f32 = 1.5;
@@ -20,33 +22,24 @@ pub fn spawn_floor(
     mut commands: Commands,
     materials: Res<Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
+    map: Res<MapDescription>,
 ) {
-    spawn_platform(
-        Vec2::new(0.0, 0.0),
-        10.0,
-        1.0,
-        &mut commands,
-        &materials,
-        &mut meshes,
-    );
-    spawn_platform(
-        Vec2::new(15.0, 5.0),
-        10.0,
-        1.0,
-        &mut commands,
-        &materials,
-        &mut meshes,
-    );
-    spawn_platform(
-        Vec2::new(15.0, -5.0),
-        10.0,
-        1.0,
-        &mut commands,
-        &materials,
-        &mut meshes,
-    );
-
-    add_death_zone(&mut commands, &materials, -20.0);
+    for PlatformDescription {
+        location,
+        width,
+        height,
+    } in map.platforms.iter().copied()
+    {
+        spawn_platform(
+            location,
+            width,
+            height,
+            &mut commands,
+            &materials,
+            &mut meshes,
+        )
+    }
+    add_death_zone(&mut commands, &materials, map.death_zone);
 }
 
 pub fn spawn_polygon(

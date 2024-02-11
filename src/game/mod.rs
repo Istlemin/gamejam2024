@@ -17,6 +17,9 @@ use bullet::*;
 mod powerups;
 use powerups::*;
 
+mod maps;
+use maps::*;
+
 use bevy::{
     prelude::*,
     render::texture::{
@@ -86,5 +89,6 @@ fn setup(
         death_zone_material: Color::rgb(0.5, 0.0, 0.).into(),
         bullet_material: Color::rgb(0.8, 0.8, 0.).into(),
     });
+    commands.insert_resource(get_map1());
     commands.spawn(new_camera_2d());
 }

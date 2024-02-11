@@ -4,6 +4,19 @@ use bevy::prelude::*;
 
 use crate::geometry::Polygon;
 
+#[derive(Copy, Clone, PartialEq)]
+pub struct PlatformDescription {
+    pub location: Vec2,
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Resource)]
+pub struct MapDescription {
+    pub platforms: Vec<PlatformDescription>,
+    pub death_zone: f32,
+}
+
 #[derive(Resource)]
 pub struct Materials {
     pub player_material: Color,
