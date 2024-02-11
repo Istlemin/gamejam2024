@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_rapier2d::dynamics::Velocity;
 
@@ -6,7 +8,7 @@ use crate::{
     AppState,
 };
 
-use super::{spawn_polygon, Bullet, Materials, Platform, Player};
+use super::{spawn_polygon, Bullet, Materials, MirrorAnimation, Platform, Player};
 
 pub struct ReflectionsPlugin;
 
@@ -19,9 +21,9 @@ impl Plugin for ReflectionsPlugin {
                 Update,
                 (
                     mirror_reflect_platforms,
-                    // reflect_platforms_over_line_segment_on_key_press,
                     mirror_reflect_bullets,
                     mirror_reflect_players,
+                    animate_mirror_effect,
                 )
                     .run_if(in_state(AppState::InGame)),
             );
@@ -31,27 +33,6 @@ impl Plugin for ReflectionsPlugin {
 #[derive(Event)]
 pub struct PlatformsMirrorReflectionEvent {
     pub mirror: LineSegment,
-}
-
-fn mirror_reflect_platforms_on_key_press(
-    keyboard_input: Res<Input<KeyCode>>,
-    players: Query<(&Player, &Transform)>,
-    mut send_reflection_event: EventWriter<PlatformsMirrorReflectionEvent>,
-) {
-    if keyboard_input.just_pressed(KeyCode::H) {
-        for (player, transformation) in players.iter() {
-            if player.id != 0 {
-                continue;
-            }
-
-            let mirror = LineSegment::new(
-                transformation.translation.xy(),
-                transformation.translation.xy() + Vec2::new(2.0, 3.0),
-            );
-
-            send_reflection_event.send(PlatformsMirrorReflectionEvent { mirror });
-        }
-    }
 }
 
 fn mirror_reflect_platforms(
@@ -150,5 +131,42 @@ fn mirror_reflect_players(
                 velocity.linvel = new_velo;
             }
         })
+    }
+}
+
+pub fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::WHITE,
+                custom_size: Vec2::new(1000.0, mirror.length()).into(),
+                ..Default::default()
+            },
+            transform: Transform::from_translation(mirror.mid_point().extend(0.0)).with_rotation(
+                Quat::from_rotation_z(
+                    Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
+                ),
+            ),
+            ..Default::default()
+        },
+        MirrorAnimation {
+            timer: Timer::new(Duration::from_millis(500), TimerMode::Once),
+        },
+    ));
+}
+
+fn animate_mirror_effect(
+    mut mirrors: Query<(Entity, &mut Sprite, &mut MirrorAnimation)>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    for (entity, mut sprite, mut mirror) in mirrors.iter_mut() {
+        mirror.timer.tick(time.delta());
+
+        if mirror.timer.finished() {
+            commands.entity(entity).despawn();
+        } else {
+            sprite.color.set_a(mirror.timer.percent_left());
+        }
     }
 }

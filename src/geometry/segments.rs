@@ -87,6 +87,14 @@ impl LineSegment {
         LineSegment { start, end }
     }
 
+    pub fn length(&self) -> f32 {
+        (self.end - self.start).length()
+    }
+
+    pub fn mid_point(&self) -> Point {
+        (self.start + self.end) / 2.
+    }
+
     pub fn get_line(self) -> Line {
         let cx = self.start.y - self.end.y;
         let cy = self.end.x - self.start.x;

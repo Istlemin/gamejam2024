@@ -3,14 +3,14 @@ use std::{ops::Add, time::Duration};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{geometry::LineSegment, AppState};
+use crate::{game::reflections::spawn_mirror_effect, geometry::LineSegment, AppState};
 
 use super::{
     reflections::{
         BulletMirrorReflectionEvent, PlatformsMirrorReflectionEvent, PlayerMirrorReflectionEvent,
     },
-    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials, Player,
-    PowerupState,
+    BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials,
+    MirrorType, Player, PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -231,6 +231,7 @@ pub fn player_use_powerup(
     send_bullet_mirref_event: &mut EventWriter<BulletMirrorReflectionEvent>,
     send_player_mirref_event: &mut EventWriter<PlayerMirrorReflectionEvent>,
     send_platforms_mirref_event: &mut EventWriter<PlatformsMirrorReflectionEvent>,
+    commands: &mut Commands,
 ) {
     player.powerup = if let Some(powerup) = player.powerup {
         debug!("Powerup activated");
@@ -268,6 +269,7 @@ pub fn player_use_powerup(
                 if r#type.reflect_players {
                     send_player_mirref_event.send(PlayerMirrorReflectionEvent { mirror });
                 }
+                spawn_mirror_effect(commands, mirror);
                 None
             }
         }
@@ -290,6 +292,7 @@ pub fn player_controller(
     mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
     mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
     mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
+    mut commands: Commands,
 ) {
     for (mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
         if keyboard_input.pressed(player.key_bindings.left) {
@@ -311,6 +314,7 @@ pub fn player_controller(
                 &mut send_bullet_mirref_event,
                 &mut send_player_mirref_event,
                 &mut send_platforms_mirref_event,
+                &mut commands,
             )
         }
     }

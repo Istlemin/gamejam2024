@@ -86,3 +86,8 @@ impl Platform {
         Self { polygon }
     }
 }
+
+#[derive(Component)]
+pub struct MirrorAnimation {
+    pub timer: Timer,
+}
