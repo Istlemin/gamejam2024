@@ -11,6 +11,7 @@ pub enum AppState {
     #[default]
     MainMenu,
     InGame,
+    GameOver,
 }
 
 use game::{GamePlugin, KeyBindings, PlayerControls};

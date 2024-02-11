@@ -48,17 +48,54 @@ impl Plugin for GamePlugin {
             .add_plugins(PowerupsPlugin)
             .add_systems(PreStartup, setup)
             .add_systems(Update, game_over)
-            .add_systems(OnExit(AppState::InGame), cleanup)
+            .add_systems(OnExit(AppState::GameOver), cleanup)
+            .add_systems(
+                Update,
+                wait_for_restart.run_if(in_state(AppState::GameOver)),
+            )
             .add_systems(Update, tick_timers.run_if(in_state(AppState::InGame)));
     }
 }
 
+fn wait_for_restart(
+    mut app_state: ResMut<NextState<AppState>>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if keyboard_input.get_just_pressed().next().is_some() {
+        app_state.set(AppState::MainMenu);
+    }
+}
+
 fn game_over(
+    mut commands: Commands,
     mut read_game_over_event: EventReader<GameOverEvent>,
     mut app_state: ResMut<NextState<AppState>>,
 ) {
     for GameOverEvent { lost_player } in read_game_over_event.read() {
-        app_state.set(AppState::MainMenu);
+        app_state.set(AppState::GameOver);
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                },
+                DespawnOnRestart {},
+            ))
+            .with_children(|parrent| {
+                parrent.spawn(TextBundle::from_section(
+                    format!("Player {} won", 2 - lost_player),
+                    TextStyle {
+                        font_size: 100.0,
+                        ..default()
+                    },
+                ));
+            });
     }
 }
 

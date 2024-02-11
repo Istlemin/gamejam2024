@@ -105,7 +105,7 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
                                     })
                                     .with_children(|parrent| {
                                         parrent.spawn(TextBundle::from_section(
-                                            format!("Player {i}"),
+                                            format!("Player {}", i + 1),
                                             TextStyle {
                                                 font_size: 20.0,
                                                 ..default()
@@ -149,6 +149,7 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
 }
 
 fn menu_action(
+    keyboard_input: Res<Input<KeyCode>>,
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
@@ -161,6 +162,9 @@ fn menu_action(
                 MenuButtonAction::Play => app_state.set(AppState::InGame),
             }
         }
+    }
+    if keyboard_input.get_just_pressed().next().is_some() {
+        app_state.set(AppState::InGame);
     }
 }
 
