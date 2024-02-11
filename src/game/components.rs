@@ -44,7 +44,6 @@ pub enum PowerupState {
 }
 
 #[derive(Component, Copy, Clone)]
-
 pub struct Player {
     pub speed: f32,
     pub facing_direction: GameDirection,
