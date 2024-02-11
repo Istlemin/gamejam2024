@@ -315,6 +315,7 @@ fn spawn_mirror(
                 ..default()
             },
             Mirror { owner: *owner },
+            DespawnOnRestart {},
         ));
     }
 }

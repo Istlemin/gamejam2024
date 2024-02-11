@@ -8,7 +8,10 @@ use crate::{
     AppState,
 };
 
-use super::{spawn_polygon, Bullet, Materials, MirrorAnimation, MirrorType, Platform, Player};
+use super::{
+    spawn_polygon, Bullet, DespawnOnRestart, Materials, MirrorAnimation, MirrorType, Platform,
+    Player,
+};
 
 pub struct ReflectionsPlugin;
 
@@ -154,6 +157,7 @@ fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
         MirrorAnimation {
             timer: Timer::new(Duration::from_millis(500), TimerMode::Once),
         },
+        DespawnOnRestart {},
     ));
 }
 
