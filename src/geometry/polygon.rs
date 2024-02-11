@@ -51,7 +51,7 @@ impl Polygon {
     }
 
     pub fn texture_coords(&self) -> &Vec<Point> {
-        &self.texture_coords()
+        &self.texture_coords
     }
 
     pub fn num_vertices(&self) -> usize {

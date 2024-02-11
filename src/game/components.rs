@@ -68,6 +68,11 @@ pub struct Platform {
 }
 
 #[derive(Component)]
+pub enum Powerup {
+    Mirror(MirrorType),
+}
+
+#[derive(Component)]
 pub struct DeathZone {}
 
 impl Platform {
