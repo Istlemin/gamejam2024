@@ -134,6 +134,13 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
                                             ),
                                             TextStyle::default(),
                                         ));
+                                        parrent.spawn(TextBundle::from_section(
+                                            format!(
+                                                "Use Butterfly = {:?}",
+                                                controls.controls[i].butterfly
+                                            ),
+                                            TextStyle::default(),
+                                        ));
                                     });
                             }
                         });
