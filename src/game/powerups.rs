@@ -141,10 +141,15 @@ fn check_powerup_collection(
     }
 }
 
-const POWERUP_PROBABILITY: f32 = 0.05;
+const POWERUP_PROBABILITY: f32 = 0.25;
 
-fn check_powerup_spawn(mut spawn_event: EventWriter<PowerupSpawnEvent>) {
-    if random::<f32>() < POWERUP_PROBABILITY {
+fn check_powerup_spawn(
+    active_powerups: Query<Entity, With<Powerup>>,
+    mut spawn_event: EventWriter<PowerupSpawnEvent>,
+) {
+    let count = active_powerups.iter().len();
+
+    if random::<f32>() < POWERUP_PROBABILITY * (0.6 as f32).powi(count as i32) {
         spawn_event.send(PowerupSpawnEvent {})
     }
 }
