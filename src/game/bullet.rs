@@ -95,7 +95,10 @@ fn player_hit(
                 player_velocity.linvel += bullet_velocity.linvel.normalize() * 10.0;
             }
         }
-        commands.entity(*bullet).despawn();
+
+        if let Some(mut entity_commands) = commands.get_entity(*bullet) {
+            entity_commands.despawn();
+        }
     }
 }
 

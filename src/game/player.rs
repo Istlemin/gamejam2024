@@ -1,7 +1,9 @@
 use std::time::Duration;
 
+use bevy::prelude::*;
 use bevy::{prelude::*, time::Stopwatch};
 use bevy_rapier2d::prelude::*;
+use bevy_rapier2d::{na::ComplexField, prelude::*};
 
 use crate::AppState;
 
@@ -80,7 +82,7 @@ pub fn spawn_players(
     spawn_player(
         0,
         Transform::from_xyz(-1.0, 7.0, 0.0),
-        Color::rgb(0.300, 0.200, 0.900),
+        "textures/player0.png".to_string(),
         &mut commands,
         &asset_server,
         &mut texture_atlases,
@@ -90,7 +92,7 @@ pub fn spawn_players(
     spawn_player(
         1,
         Transform::from_xyz(1.0, 7.0, 0.0),
-        Color::rgb(0.969, 0.200, 0.300),
+        "textures/player1.png".to_string(),
         &mut commands,
         &asset_server,
         &mut texture_atlases,
@@ -108,14 +110,14 @@ pub struct PlayerSpawnEvent {
 fn spawn_player(
     player_id: i32,
     position: Transform,
-    color: Color,
+    texture: String,
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     key_bindings: KeyBindings,
     spawn_event_sender: &mut EventWriter<PlayerSpawnEvent>,
 ) {
-    let texture_handle = asset_server.load("textures/gabe-idle-run.png");
+    let texture_handle = asset_server.load(texture);
     let texture_atlas =
         TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
@@ -184,7 +186,10 @@ pub fn player_go_left(
     velocity: &mut Velocity,
     sprite: &mut TextureAtlasSprite,
 ) {
-    velocity.linvel = Vec2::new(-player.speed, velocity.linvel.y).into();
+    if velocity.linvel.x > -player.speed {
+        velocity.linvel += Vec2::new(-player.speed * 0.2, 0.);
+    }
+
     player.facing_direction = GameDirection::Left;
     sprite.flip_x = true;
     player.is_running = true;
@@ -195,7 +200,10 @@ pub fn player_go_right(
     velocity: &mut Velocity,
     sprite: &mut TextureAtlasSprite,
 ) {
-    velocity.linvel = Vec2::new(player.speed, velocity.linvel.y).into();
+    if velocity.linvel.x < player.speed {
+        velocity.linvel += Vec2::new(player.speed * 0.2, 0.);
+    }
+
     player.facing_direction = GameDirection::Right;
     sprite.flip_x = false;
     player.is_running = true;
