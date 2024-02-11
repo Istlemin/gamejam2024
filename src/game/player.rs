@@ -1,12 +1,14 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
 use bevy::{prelude::*, time::Stopwatch};
 use bevy_rapier2d::prelude::*;
 use bevy_rapier2d::{na::ComplexField, prelude::*};
 
 use crate::AppState;
 
+use super::MapDescription;
 use super::{
     butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer,
     BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType,
@@ -30,7 +32,7 @@ impl Plugin for PlayerPlugin {
             .add_systems(
                 Update,
                 (
-                    //camera_follow_player.run_if(in_state(AppState::InGame)),
+                    camera_follow_players.run_if(in_state(AppState::InGame)),
                     (
                         player_controller,
                         jump_reset,
@@ -169,14 +171,30 @@ fn spawn_player(
     })
 }
 
-fn camera_follow_player(
-    mut cameras: Query<&mut Transform, With<Camera>>,
+fn camera_follow_players(
+    mut cameras: Query<(&mut Transform, &mut OrthographicProjection), With<Camera>>,
     players: Query<&Transform, (With<Player>, Without<Camera>)>,
 ) {
-    for player in players.iter() {
-        for mut camera in cameras.iter_mut() {
-            camera.translation.x = player.translation.x;
-            camera.translation.y = player.translation.y;
+    let center = players
+        .iter()
+        .map(|transform| transform.translation.xy())
+        .fold(Vec2::ZERO, |acc, pos| acc + pos)
+        / players.iter().len() as f32;
+
+    let max_dist = players
+        .iter()
+        .map(|transform| transform.translation.xy() - center)
+        .fold(Vec2::ZERO, |acc, pos| {
+            Vec2::new(acc.x.max(pos.x.abs()), acc.y.max(pos.y.abs()))
+        });
+
+    let width = f32::max(80.0, max_dist.x * 3.0 + 10.0);
+    let height = f32::max(30.0, max_dist.y * 3.0 + 10.0);
+    for (mut transform, mut projection) in cameras.iter_mut() {
+        transform.translation = center.extend(transform.translation.z);
+        projection.scaling_mode = ScalingMode::AutoMin {
+            min_width: width,
+            min_height: height,
         }
     }
 }
@@ -458,9 +476,10 @@ fn check_death_collision(
     //mut death_zones: Query<(Entity, &DeathZone)>,
     //mut contact_events: EventReader<CollisionEvent>,
     mut send_game_over_event: EventWriter<GameOverEvent>,
+    map: Res<MapDescription>,
 ) {
     for (transform, player) in players.iter() {
-        if transform.translation.y < -40.0 {
+        if transform.translation.y < map.death_zone {
             send_game_over_event.send(GameOverEvent {
                 lost_player: player.id,
             })

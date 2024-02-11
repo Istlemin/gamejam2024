@@ -57,6 +57,6 @@ pub fn get_map1() -> MapDescription {
             },
         ],
 
-        death_zone: -20.0,
+        death_zone: -40.0,
     }
 }
