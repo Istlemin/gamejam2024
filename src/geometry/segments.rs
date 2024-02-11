@@ -28,7 +28,6 @@ impl Line {
 
     pub fn intersect(self, other: Line) -> Option<Point> {
         let det = cross(self.coeffs, other.coeffs);
-        dbg!(det);
 
         if det.abs() < EPS {
             None
