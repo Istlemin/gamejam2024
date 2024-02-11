@@ -72,8 +72,9 @@ fn move_butterfly(time: Res<Time>, mut position: Query<(&Butterfly, &mut Transfo
         let t = time.elapsed_seconds() / 3.;
         debug!("{:?}", t);
         let scale = 20.;
+        let y_delta = 5.;
         transform.translation.x = scale * t.cos() * t.cos().abs();
-        transform.translation.y = scale * 0.2 * (2. * t).sin();
+        transform.translation.y = scale * 0.2 * (2. * t).sin() + y_delta;
         transform.rotation = Quat::from_rotation_z(2. * t.sin() * t.sin().abs())
     }
 }
