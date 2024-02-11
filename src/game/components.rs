@@ -24,6 +24,23 @@ pub struct KeyBindings {
     pub right: KeyCode,
     pub jump: KeyCode,
     pub shoot: KeyCode,
+    pub powerup: KeyCode,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct MirrorType {
+    pub reflect_players: bool,
+    pub reflect_platforms: bool,
+    pub reflect_bullets: bool,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum PowerupState {
+    Mirror {
+        r#type: MirrorType,
+        point1: Option<Vec2>,
+        point2: Option<Vec2>,
+    },
 }
 
 #[derive(Component, Copy, Clone)]
@@ -37,6 +54,7 @@ pub struct Player {
     pub last_shoot_time: Duration,
     pub shoot_interval: Duration,
     pub key_bindings: KeyBindings,
+    pub powerup: Option<PowerupState>,
 }
 
 #[derive(Component)]

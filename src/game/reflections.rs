@@ -29,8 +29,8 @@ impl Plugin for ReflectionsPlugin {
 }
 
 #[derive(Event)]
-struct PlatformsMirrorReflectionEvent {
-    seg: LineSegment,
+pub struct PlatformsMirrorReflectionEvent {
+    pub mirror: LineSegment,
 }
 
 fn mirror_reflect_platforms_on_key_press(
@@ -44,12 +44,12 @@ fn mirror_reflect_platforms_on_key_press(
                 continue;
             }
 
-            let seg = LineSegment::new(
+            let mirror = LineSegment::new(
                 transformation.translation.xy(),
                 transformation.translation.xy() + Vec2::new(2.0, 3.0),
             );
 
-            send_reflection_event.send(PlatformsMirrorReflectionEvent { seg });
+            send_reflection_event.send(PlatformsMirrorReflectionEvent { mirror });
         }
     }
 }
@@ -61,11 +61,11 @@ fn mirror_reflect_platforms(
     materials: Res<Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    for PlatformsMirrorReflectionEvent { seg } in reflection_event_reader.read() {
+    for PlatformsMirrorReflectionEvent { mirror } in reflection_event_reader.read() {
         for (entity, transform, platform) in platforms.iter() {
             let polygon = platform.get_transformed_polygon(transform);
-            let (a, b) = seg.endpoints();
-            let mirror_line = seg.get_line();
+            let (a, b) = mirror.endpoints();
+            let mirror_line = mirror.get_line();
             let border_a = mirror_line.perpendicular_through(a);
             let border_b = mirror_line.perpendicular_through(b);
 
@@ -101,8 +101,8 @@ fn mirror_reflect_platforms(
 }
 
 #[derive(Event)]
-struct BulletMirrorReflectionEvent {
-    mirror: LineSegment,
+pub struct BulletMirrorReflectionEvent {
+    pub mirror: LineSegment,
 }
 
 fn mirror_reflect_bullets(
@@ -128,8 +128,8 @@ fn mirror_reflect_bullets(
 }
 
 #[derive(Event)]
-struct PlayerMirrorReflectionEvent {
-    mirror: LineSegment,
+pub struct PlayerMirrorReflectionEvent {
+    pub mirror: LineSegment,
 }
 
 fn mirror_reflect_players(

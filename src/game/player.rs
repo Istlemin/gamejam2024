@@ -3,10 +3,14 @@ use std::{ops::Add, time::Duration};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::AppState;
+use crate::{geometry::LineSegment, AppState};
 
 use super::{
+    reflections::{
+        BulletMirrorReflectionEvent, PlatformsMirrorReflectionEvent, PlayerMirrorReflectionEvent,
+    },
     BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Materials, Player,
+    PowerupState,
 };
 
 pub struct PlayerPlugin;
@@ -42,6 +46,7 @@ fn spawn_players(mut commands: Commands, materials: Res<Materials>) {
             right: KeyCode::Right,
             jump: KeyCode::Up,
             shoot: KeyCode::ControlRight,
+            powerup: KeyCode::ShiftRight,
         },
     );
     spawn_player(
@@ -53,6 +58,7 @@ fn spawn_players(mut commands: Commands, materials: Res<Materials>) {
             right: KeyCode::D,
             jump: KeyCode::W,
             shoot: KeyCode::Space,
+            powerup: KeyCode::M,
         },
     );
 }
@@ -81,6 +87,7 @@ fn spawn_player(player_id: i32, color: Color, commands: &mut Commands, key_bindi
             last_shoot_time: Duration::new(0, 0),
             shoot_interval: Duration::new(0, 100_000_000),
             key_bindings,
+            powerup: None,
         },
         Velocity {
             linvel: Vec2::new(0.0, 0.0),
@@ -149,12 +156,66 @@ pub fn player_shoot(
     }
 }
 
+pub fn player_use_powerup(
+    player: &mut Player,
+    transform: &mut Transform,
+    send_bullet_mirref_event: &mut EventWriter<BulletMirrorReflectionEvent>,
+    send_player_mirref_event: &mut EventWriter<PlayerMirrorReflectionEvent>,
+    send_platforms_mirref_event: &mut EventWriter<PlatformsMirrorReflectionEvent>,
+) {
+    player.powerup = if let Some(powerup) = player.powerup {
+        debug!("Powerup activated");
+        match powerup {
+            PowerupState::Mirror {
+                r#type,
+                point1: None,
+                point2: _,
+            } => Some(PowerupState::Mirror {
+                r#type,
+                point1: Some(transform.translation.xy()),
+                point2: None,
+            }),
+            PowerupState::Mirror {
+                r#type,
+                point1: Some(p1),
+                point2: None,
+            } => Some(PowerupState::Mirror {
+                r#type,
+                point1: Some(p1),
+                point2: Some(transform.translation.xy()),
+            }),
+            PowerupState::Mirror {
+                r#type,
+                point1: Some(p1),
+                point2: Some(p2),
+            } => {
+                let mirror = LineSegment::new(p1, p2);
+                if r#type.reflect_bullets {
+                    send_bullet_mirref_event.send(BulletMirrorReflectionEvent { mirror });
+                }
+                if r#type.reflect_platforms {
+                    send_platforms_mirref_event.send(PlatformsMirrorReflectionEvent { mirror });
+                }
+                if r#type.reflect_players {
+                    send_player_mirref_event.send(PlayerMirrorReflectionEvent { mirror });
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+}
+
 pub fn player_controller(
     keyboard_input: Res<Input<KeyCode>>,
     mut players: Query<(&mut Player, &mut Velocity, &mut Transform)>,
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
     mut app_state: ResMut<NextState<AppState>>,
+    mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
+    mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
+    mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
 ) {
     for (mut player, mut velocity, mut transform) in players.iter_mut() {
         if keyboard_input.pressed(player.key_bindings.left) {
@@ -168,6 +229,15 @@ pub fn player_controller(
         }
         if keyboard_input.pressed(player.key_bindings.shoot) {
             player_shoot(&mut player, &mut transform, &mut send_fire_event, &time);
+        }
+        if keyboard_input.just_pressed(player.key_bindings.powerup) {
+            player_use_powerup(
+                &mut player,
+                &mut transform,
+                &mut send_bullet_mirref_event,
+                &mut send_player_mirref_event,
+                &mut send_platforms_mirref_event,
+            )
         }
     }
     if keyboard_input.just_pressed(KeyCode::R) {
