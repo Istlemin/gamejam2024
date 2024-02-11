@@ -42,7 +42,8 @@ impl Plugin for PowerupsPlugin {
                 Update,
                 handle_powerup_collection.run_if(in_state(AppState::InGame)),
             )
-            .add_systems(Update, spawn_powerup.run_if(in_state(AppState::InGame)));
+            .add_systems(Update, spawn_powerup.run_if(in_state(AppState::InGame)))
+            .add_systems(Update, move_powerups.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -60,10 +61,27 @@ fn spawn_powerup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
+    time: Res<Time>,
 ) {
     for _ in powerup_event.read() {
-        let x = POWERUP_XMIN + random::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
-        let y = POWERUP_YMIN + random::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
+        let mut rng = thread_rng();
+
+        let x = POWERUP_XMIN + rng.gen::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
+        let y = POWERUP_YMIN + rng.gen::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
+
+        let mover = PowerupMover {
+            speed: 0.25 + 1.5 * rng.gen::<f32>(),
+            scale: 1.5 + 3.0 * rng.gen::<f32>(),
+            offset: Vec2 { x, y },
+            shape: match rng.gen_range(0..4) {
+                0 => Shape::Circle,
+                1 => Shape::Infinity,
+                2 => Shape::Horizontal,
+                3 => Shape::Vertical,
+                _ => Shape::None,
+            },
+        };
+
         info!("Spawning Powerup at {:?} {:?}", x, y);
 
         let reflections = thread_rng().gen_range(1..8);
@@ -72,7 +90,9 @@ fn spawn_powerup(
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(0.5).into()).into(),
                 material: materials.add(asset_server.load("textures/orb.png").into()),
-                transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+                transform: Transform::from_translation(
+                    mover.get_position(time.elapsed_seconds()).extend(0.0),
+                ),
                 ..default()
             },
             Collider::ball(0.5),
@@ -84,6 +104,7 @@ fn spawn_powerup(
                 reflect_players: (reflections & 2) > 0,
                 reflect_platforms: (reflections & 4) > 0,
             }),
+            mover,
         ));
     }
 }
@@ -212,4 +233,44 @@ fn spawn_powerup_trackers(
             DespawnOnRestart {},
         ));
     }
+}
+
+enum Shape {
+    None,
+    Circle,
+    Infinity,
+    Horizontal,
+    Vertical,
+}
+
+impl Shape {
+    fn f(&self, t: f32) -> Vec2 {
+        match *self {
+            Shape::Circle => Vec2::new(t.cos(), t.sin()),
+            Shape::Infinity => Vec2::new(t.cos(), (2.0 * t).sin() / 2.0),
+            Shape::Horizontal => Vec2::new(t.cos(), 0.0),
+            Shape::Vertical => Vec2::new(0.0, t.sin()),
+            Shape::None => Vec2::ZERO,
+        }
+    }
+}
+
+#[derive(Component)]
+struct PowerupMover {
+    shape: Shape,
+    offset: Vec2,
+    speed: f32,
+    scale: f32,
+}
+
+impl PowerupMover {
+    fn get_position(&self, time: f32) -> Vec2 {
+        self.offset + self.scale * self.shape.f(self.speed * time)
+    }
+}
+
+fn move_powerups(mut powerups: Query<(&mut Transform, &PowerupMover)>, time: Res<Time>) {
+    powerups.for_each_mut(|(mut transform, mover)| {
+        transform.translation = mover.get_position(time.elapsed_seconds()).extend(0.0)
+    });
 }
