@@ -175,23 +175,25 @@ fn camera_follow_players(
     mut cameras: Query<(&mut Transform, &mut OrthographicProjection), With<Camera>>,
     players: Query<&Transform, (With<Player>, Without<Camera>)>,
 ) {
-    let center = players
-        .iter()
-        .map(|transform| transform.translation.xy())
-        .fold(Vec2::ZERO, |acc, pos| acc + pos)
-        / players.iter().len() as f32;
-
-    let max_dist = players
-        .iter()
-        .map(|transform| transform.translation.xy() - center)
-        .fold(Vec2::ZERO, |acc, pos| {
-            Vec2::new(acc.x.max(pos.x.abs()), acc.y.max(pos.y.abs()))
-        });
-
-    let width = f32::max(80.0, max_dist.x * 3.0 + 10.0);
-    let height = f32::max(30.0, max_dist.y * 3.0 + 10.0);
     for (mut transform, mut projection) in cameras.iter_mut() {
-        transform.translation = center.extend(transform.translation.z);
+        // let center = players
+        //     .iter()
+        //     .map(|transform| transform.translation.xy())
+        //     .fold(Vec2::ZERO, |acc, pos| acc + pos)
+        //     / players.iter().len() as f32;
+        let center = transform.translation.xy();
+
+        let max_dist = players
+            .iter()
+            .map(|transform| transform.translation.xy() - center)
+            .fold(Vec2::ZERO, |acc, pos| {
+                Vec2::new(acc.x.max(pos.x.abs()), acc.y.max(pos.y.abs()))
+            });
+
+        let width = f32::max(80.0, max_dist.x * 2.5 + 10.0);
+        let height = f32::max(30.0, max_dist.y * 2.5 + 10.0);
+
+        // transform.translation = center.extend(transform.translation.z);
         projection.scaling_mode = ScalingMode::AutoMin {
             min_width: width,
             min_height: height,
