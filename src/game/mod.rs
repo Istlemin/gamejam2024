@@ -48,7 +48,7 @@ impl Plugin for GamePlugin {
             .add_plugins(PowerupsPlugin)
             .add_systems(PreStartup, setup)
             .add_systems(Update, game_over)
-            .add_systems(OnExit(AppState::GameOver), cleanup)
+            .add_systems(OnEnter(AppState::MainMenu), cleanup)
             .add_systems(
                 Update,
                 wait_for_restart.run_if(in_state(AppState::GameOver)),
