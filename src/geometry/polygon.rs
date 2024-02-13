@@ -1,5 +1,7 @@
-use super::utils::{cross, EPS};
-use super::Point;
+use std::cmp;
+
+use super::utils::{cross, num_integrate, signed_area, split_weight_function, EPS};
+use super::{segments, Circle, Point};
 use super::{Croppable, Line, LineSegment, Reflectable};
 use bevy::{
     prelude::*,
@@ -11,19 +13,6 @@ use bevy_rapier2d::geometry::Collider;
 pub struct Polygon {
     vertices: Vec<Point>,
     texture_coords: Vec<Point>,
-}
-
-fn signed_area(vertices: &Vec<Point>) -> f32 {
-    let mut area = 0.0;
-
-    for i in 0..vertices.len() {
-        area += cross(
-            vertices[i],
-            vertices[if i + 1 >= vertices.len() { 0 } else { i + 1 }],
-        ) / 2.0;
-    }
-
-    area
 }
 
 impl Polygon {
@@ -54,9 +43,52 @@ impl Polygon {
     pub fn area(&self) -> f32 {
         signed_area(&self.vertices)
     }
+
+    pub fn sanitize_polynomial(&self, min_dist: f32, min_area: f32) -> Option<Polygon> {
+        if self.num_vertices() < 3 {
+            return None;
+        }
+        let mut vertices_out = vec![self.vertices[0]];
+        let mut texture_coords_out = vec![self.texture_coords[0]];
+
+        for j in 1..self.num_vertices() {
+            let vert = self.vertices[j];
+
+            if (vert - *vertices_out.last().unwrap()).length() >= min_dist {
+                vertices_out.push(vert);
+                texture_coords_out.push(self.texture_coords[j])
+            }
+        }
+
+        if (*vertices_out.last().unwrap() - vertices_out[0]).length() < min_dist {
+            vertices_out.pop();
+            texture_coords_out.pop();
+        }
+
+        if vertices_out.len() > 2 && signed_area(&vertices_out).abs() > min_area {
+            Some(Polygon {
+                vertices: vertices_out,
+                texture_coords: texture_coords_out,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn border(&self) -> Vec<LineSegment> {
+        let n = self.num_vertices();
+
+        (0..n)
+            .map(|j| LineSegment::new(self.vertices[j], self.vertices[(j + 1) % n]))
+            .collect()
+    }
 }
 
+const POLYGON_RES: usize = 120;
+
 impl Reflectable for Polygon {
+    type InvertOutType = Option<Polygon>;
+
     fn reflect_over_line(&self, line: super::Line) -> Self {
         Polygon {
             vertices: self
@@ -80,9 +112,55 @@ impl Reflectable for Polygon {
             texture_coords: self.texture_coords.clone().into_iter().rev().collect(),
         }
     }
+
+    fn invert_over_circle(&self, circle: Circle) -> Self::InvertOutType {
+        let segments = self.border();
+
+        let n = self.num_vertices();
+        let texture_coords_segs =
+            (0..n).map(|j| (self.texture_coords[j], self.texture_coords[(j + 1) % n]));
+
+        let integral_cnt: Vec<usize> = segments
+            .iter()
+            .map(|seg| cmp::min(400, (seg.length() / 0.05).ceil() as usize))
+            .collect();
+
+        let sizes: Vec<f32> = segments
+            .iter()
+            .zip(integral_cnt.iter())
+            .map(|(seg, n)| {
+                *num_integrate(*seg, *n, &|x| split_weight_function(x, circle.center()))
+                    .last()
+                    .unwrap()
+            })
+            .collect();
+        let total: f32 = sizes.iter().sum();
+
+        let mut verts_out = Vec::<Point>::new();
+        let mut texture_coords_out = Vec::<Point>::new();
+
+        for ((seg, size), (t_a, t_b)) in segments.iter().zip(sizes.iter()).zip(texture_coords_segs)
+        {
+            let split = seg.weighted_split(
+                &|x| split_weight_function(x, circle.center()),
+                (size * (POLYGON_RES as f32) / total).ceil() as usize,
+            );
+
+            let (a, b) = seg.endpoints();
+
+            for vertex in split {
+                if let Some(p) = vertex.invert_over_circle(circle) {
+                    verts_out.push(p);
+                    texture_coords_out.push(interpolate_texture_coords(a, t_a, b, t_b, vertex));
+                }
+            }
+        }
+
+        Polygon::new(verts_out, texture_coords_out).sanitize_polynomial(0.005, 0.005)
+    }
 }
 
-fn interpolate(
+fn interpolate_texture_coords(
     last_p: Point,
     last_texture: Point,
     next_p: Point,
@@ -116,7 +194,7 @@ impl Croppable for Polygon {
                         if (intersection - *new_vertices.last().unwrap()).length() > EPS
                             && (intersection - self.vertices[nx]).length() > EPS
                         {
-                            new_texture_coords.push(interpolate(
+                            new_texture_coords.push(interpolate_texture_coords(
                                 self.vertices[last],
                                 self.texture_coords[last],
                                 self.vertices[nx],
@@ -135,7 +213,7 @@ impl Croppable for Polygon {
                         line.intersect(Line::new_through(self.vertices[last], self.vertices[nx]))
                     {
                         if (intersection - *new_vertices.last().unwrap()).length() > EPS {
-                            new_texture_coords.push(interpolate(
+                            new_texture_coords.push(interpolate_texture_coords(
                                 self.vertices[last],
                                 self.texture_coords[last],
                                 self.vertices[nx],

@@ -1,5 +1,7 @@
-use super::utils::{cross, EPS};
-use super::{Croppable, Point, Reflectable};
+use std::cmp;
+
+use super::utils::{cross, num_integrate, split_weight_function, EPS};
+use super::{Circle, Croppable, Point, Reflectable};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Line {
@@ -62,7 +64,7 @@ impl Line {
     }
 
     pub fn contains(self, p: Point) -> bool {
-        self.side(p).abs() < EPS
+        self.distance(p) < EPS
     }
 
     pub fn side(self, p: Point) -> f32 {
@@ -78,6 +80,14 @@ impl Line {
             coeffs: self.coeffs,
             offset: 0.0,
         }
+    }
+
+    pub fn distance(self, p: Point) -> f32 {
+        self.side(p).abs()
+    }
+
+    pub fn closest_point(self, p: Point) -> Point {
+        -self.offset * self.coeffs + self.direction() * self.direction().dot(p)
     }
 }
 
@@ -146,9 +156,48 @@ impl LineSegment {
         let (b_a, b_b) = self.strip_boundaries();
         b_a.is_on_side(p, b_a.side(self.end)) & b_b.is_on_side(p, b_b.side(self.start))
     }
+
+    pub fn interpolate_position(&self, w1: f32, w2: f32) -> Point {
+        (w2 * self.start + w1 * self.end) / (w1 + w2)
+    }
+
+    pub fn weighted_split(self, f: &dyn Fn(Point) -> f32, num_splits: usize) -> Vec<Point> {
+        let n = cmp::min(200, (self.length() / 0.05).ceil() as usize);
+
+        let intermediate = num_integrate(self, n, f);
+
+        let m = num_splits + 1;
+
+        let total = intermediate.last().unwrap();
+        let step_sizes = total / (m as f32);
+
+        let mut p1: usize = 0;
+
+        let mut res = vec![];
+
+        for p2 in 0..n {
+            let a = self.interpolate_position(p2 as f32, (n - p2) as f32);
+            let b = self.interpolate_position((p2 + 1) as f32, (n - p2 - 1) as f32);
+            let seg = LineSegment::new(a, b);
+            while p1 <= m && step_sizes * (p1 as f32) <= EPS * total + intermediate[p2 + 1] {
+                let curr_value = step_sizes * (p1 as f32);
+                res.push(seg.interpolate_position(
+                    curr_value - intermediate[p2],
+                    intermediate[p2 + 1] - curr_value,
+                ));
+                p1 += 1;
+            }
+        }
+
+        res
+    }
 }
 
+const LINESEG_RES: usize = 30;
+
 impl Reflectable for LineSegment {
+    type InvertOutType = Vec<LineSegment>;
+
     fn reflect_over_line(&self, line: Line) -> Self {
         LineSegment::new(
             self.start.reflect_over_line(line),
@@ -161,6 +210,16 @@ impl Reflectable for LineSegment {
             self.start.reflect_over_point(origin),
             self.end.reflect_over_point(origin),
         )
+    }
+
+    fn invert_over_circle(&self, circle: Circle) -> Self::InvertOutType {
+        let points =
+            self.weighted_split(&|x| split_weight_function(x, circle.center()), LINESEG_RES);
+
+        points
+            .windows(2)
+            .map(|segs| LineSegment::new(segs[0], segs[1]))
+            .collect()
     }
 }
 
