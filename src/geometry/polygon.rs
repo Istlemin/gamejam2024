@@ -1,7 +1,7 @@
 use std::cmp;
 
-use super::utils::{cross, num_integrate, signed_area, split_weight_function, EPS};
-use super::{segments, Circle, Point};
+use super::utils::{num_integrate, signed_area, split_weight_function, EPS};
+use super::{Circle, Point};
 use super::{Croppable, Line, LineSegment, Reflectable};
 use bevy::{
     prelude::*,
@@ -156,7 +156,7 @@ impl Reflectable for Polygon {
             }
         }
 
-        Polygon::new(verts_out, texture_coords_out).sanitize_polynomial(0.005, 0.005)
+        Polygon::new(verts_out, texture_coords_out).sanitize_polynomial(0.001, 0.001)
     }
 }
 
@@ -229,10 +229,7 @@ impl Croppable for Polygon {
         new_vertices.pop();
         new_texture_coords.pop();
 
-        Some(Polygon {
-            vertices: new_vertices,
-            texture_coords: new_texture_coords,
-        })
+        Polygon::new(new_vertices, new_texture_coords).sanitize_polynomial(EPS, 0.01)
     }
 }
 
