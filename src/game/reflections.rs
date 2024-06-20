@@ -1,10 +1,10 @@
-use std::time::Duration;
+use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
 use bevy_rapier2d::dynamics::Velocity;
 
 use crate::{
-    geometry::{Croppable, LineSegment, Reflectable},
+    geometry::{utils::signed_area, Circle, Croppable, Line, LineSegment, Reflectable},
     AppState,
 };
 
@@ -21,6 +21,8 @@ impl Plugin for ReflectionsPlugin {
             .add_event::<PlatformsMirrorReflectionEvent>()
             .add_event::<PlayerMirrorReflectionEvent>()
             .add_event::<ReflectionEvent>()
+            .add_event::<PlatformsInversionEvent>()
+            .add_event::<PlayerInversionEvent>()
             .add_systems(
                 Update,
                 (
@@ -29,6 +31,8 @@ impl Plugin for ReflectionsPlugin {
                     mirror_reflect_players,
                     animate_mirror_effect,
                     mirror_use,
+                    invert_platforms,
+                    invert_players,
                 )
                     .run_if(in_state(AppState::InGame)),
             );
@@ -83,6 +87,159 @@ fn mirror_reflect_platforms(
                 );
             }
         }
+    }
+}
+
+#[derive(Event)]
+pub struct PlatformsInversionEvent {
+    pub circle: Circle,
+    pub angle_start: Vec2,
+    pub angle_len: f32,
+}
+
+fn invert_platforms(
+    mut inversion_event_reader: EventReader<PlatformsInversionEvent>,
+    mut commands: Commands,
+    platforms: Query<(Entity, &Transform, &Platform)>,
+    materials: Res<Materials>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for PlatformsInversionEvent {
+        circle,
+        angle_start,
+        angle_len,
+    } in inversion_event_reader.read()
+    {
+        dbg!("Running inversion");
+        for (entity, transform, platform) in platforms.iter() {
+            let polygon = platform.get_transformed_polygon(transform);
+            let line_a = Line::new_through(circle.center(), circle.center() + *angle_start);
+            let dir_b = Vec2::from_angle(*angle_len).rotate(*angle_start);
+            let line_b = Line::new_through(circle.center(), circle.center() + dir_b);
+
+            let a_inside = Vec2::from_angle(PI / 2.0).rotate(*angle_start);
+            let b_inside = Vec2::from_angle(-PI / 2.0).rotate(dir_b);
+
+            let temp_1 = polygon.crop_to_halfplane(line_a, line_a.side(a_inside));
+            let temp_2 = polygon.crop_to_halfplane(line_a, -line_a.side(a_inside));
+
+            let both_inside = temp_1
+                .as_ref()
+                .and_then(|p| p.crop_to_halfplane(line_b, line_b.side(b_inside)));
+            let one_inside_1 = temp_1
+                .as_ref()
+                .and_then(|p| p.crop_to_halfplane(line_b, -line_b.side(b_inside)));
+            let one_inside_2 = temp_2
+                .as_ref()
+                .and_then(|p| p.crop_to_halfplane(line_b, line_b.side(b_inside)));
+            let both_outside = temp_2
+                .as_ref()
+                .and_then(|p| p.crop_to_halfplane(line_b, -line_b.side(b_inside)));
+
+            if *angle_len <= PI {
+                if let Some(both) = both_inside {
+                    commands.entity(entity).despawn();
+                    for poly in [one_inside_1, one_inside_2, both_outside]
+                        .into_iter()
+                        .flatten()
+                    {
+                        spawn_polygon(
+                            Vec2::new(0.0, 0.0),
+                            poly,
+                            &mut commands,
+                            &materials,
+                            &mut meshes,
+                        );
+                    }
+
+                    if let Some(inverted) = both.invert_over_circle(*circle) {
+                        spawn_polygon(
+                            Vec2::new(0.0, 0.0),
+                            inverted,
+                            &mut commands,
+                            &materials,
+                            &mut meshes,
+                        );
+                    }
+                }
+            } else {
+                if both_inside.is_none() && one_inside_1.is_none() && one_inside_2.is_none() {
+                    continue;
+                }
+                commands.entity(entity).despawn();
+
+                if let Some(outside) = both_outside {
+                    spawn_polygon(
+                        Vec2::new(0.0, 0.0),
+                        outside,
+                        &mut commands,
+                        &materials,
+                        &mut meshes,
+                    );
+                }
+
+                for poly in [one_inside_1, one_inside_2, both_inside]
+                    .into_iter()
+                    .flatten()
+                {
+                    if let Some(new_poly) = poly.invert_over_circle(*circle) {
+                        spawn_polygon(
+                            Vec2::new(0.0, 0.0),
+                            new_poly,
+                            &mut commands,
+                            &materials,
+                            &mut meshes,
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct PlayerInversionEvent {
+    pub circle: Circle,
+    pub angle_start: Vec2,
+    pub angle_len: f32,
+}
+
+fn invert_players(
+    mut players: Query<(&mut Player, &mut Transform, &mut Velocity)>,
+    mut reflection_event_reader: EventReader<PlayerInversionEvent>,
+) {
+    for PlayerInversionEvent {
+        circle,
+        angle_start,
+        angle_len,
+    } in reflection_event_reader.read()
+    {
+        players.for_each_mut(|(_, mut transform, mut velocity)| {
+            let pos = transform.translation.xy();
+            let velo_2d = velocity.linvel;
+
+            if signed_area(&vec![
+                angle_start.normalize(),
+                (pos - circle.center()).normalize(),
+                Vec2::from_angle(*angle_len)
+                    .rotate(*angle_start)
+                    .normalize(),
+            ]) >= 0.0
+            {
+                let new_pos = pos
+                    .invert_over_circle(*circle)
+                    .or(Some(Vec2::new(1000.0, 0.0)))
+                    .unwrap();
+                let new_velo = (pos + velo_2d)
+                    .invert_over_circle(*circle)
+                    .or(Some(Vec2::new(2000.0, 0.0)))
+                    .unwrap()
+                    - new_pos;
+
+                transform.translation = new_pos.extend(0.0);
+                velocity.linvel = new_velo;
+            }
+        })
     }
 }
 
