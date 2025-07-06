@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    ops::{Index, IndexMut},
+    time::Duration,
+};
 
 use bevy::{prelude::*, time::Stopwatch};
 
@@ -31,6 +34,16 @@ pub enum GameDirection {
     Right,
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PlayerAction {
+    Left,
+    Right,
+    Jump,
+    Shoot,
+    Powerup,
+    Butterfly,
+}
+
 #[derive(Copy, Clone, PartialEq)]
 pub struct KeyBindings {
     pub left: KeyCode,
@@ -39,6 +52,34 @@ pub struct KeyBindings {
     pub shoot: KeyCode,
     pub powerup: KeyCode,
     pub butterfly: KeyCode,
+}
+
+impl Index<PlayerAction> for KeyBindings {
+    type Output = KeyCode;
+
+    fn index(&self, action: PlayerAction) -> &Self::Output {
+        match action {
+            PlayerAction::Left => &self.left,
+            PlayerAction::Right => &self.right,
+            PlayerAction::Jump => &self.jump,
+            PlayerAction::Shoot => &self.shoot,
+            PlayerAction::Powerup => &self.powerup,
+            PlayerAction::Butterfly => &self.butterfly,
+        }
+    }
+}
+
+impl IndexMut<PlayerAction> for KeyBindings {
+    fn index_mut(&mut self, action: PlayerAction) -> &mut Self::Output {
+        match action {
+            PlayerAction::Left => &mut self.left,
+            PlayerAction::Right => &mut self.right,
+            PlayerAction::Jump => &mut self.jump,
+            PlayerAction::Shoot => &mut self.shoot,
+            PlayerAction::Powerup => &mut self.powerup,
+            PlayerAction::Butterfly => &mut self.butterfly,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]

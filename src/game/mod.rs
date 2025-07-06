@@ -33,7 +33,7 @@ use crate::AppState;
 
 use self::{butterfly::ButterflyPlugin, reflections::ReflectionsPlugin};
 
-pub use components::{KeyBindings, PlayerControls};
+pub use components::{KeyBindings, PlayerAction, PlayerControls};
 
 pub struct GamePlugin;
 
