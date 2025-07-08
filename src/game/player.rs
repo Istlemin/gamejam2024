@@ -6,6 +6,7 @@ use bevy::{prelude::*, time::Stopwatch};
 use bevy_rapier2d::prelude::*;
 use bevy_rapier2d::{na::ComplexField, prelude::*};
 
+use crate::game::components::HitCounter;
 use crate::AppState;
 
 use super::MapDescription;
@@ -41,6 +42,8 @@ impl Plugin for PlayerPlugin {
                         draw_mirrors,
                         spawn_mirror,
                         use_mirror,
+                        set_player_color,
+                        tick_hit_counters,
                     )
                         .run_if(in_state(AppState::InGame)),
                 ),
@@ -164,6 +167,7 @@ fn spawn_player(
             angvel: 0.0,
         },
         DespawnOnRestart {},
+        HitCounter::new(),
     ));
     spawn_event_sender.send(PlayerSpawnEvent {
         player_id,
@@ -500,6 +504,25 @@ fn check_death_collision(
     //         }
     //     }
     // }
+}
+
+fn tick_hit_counters(
+    mut hit_counters: Query<&mut HitCounter>,
+    time: Res<Time>,
+) {
+    for mut hit_counter in hit_counters.iter_mut() {
+        hit_counter.tick_down(time.delta());
+    }
+}
+
+fn set_player_color(
+    mut players: Query<(&mut TextureAtlasSprite, &HitCounter), With<Player>>,
+) {
+    for (mut sprite, hit_counter) in players.iter_mut() {
+        let fraction = (hit_counter.count - HitCounter::MIN_VALUE) / (HitCounter::HIT_INCREMENT * 10.0);
+        let color = Color::rgb(1.0, 1.0 - fraction, 1.0 - fraction);
+        sprite.color = color;
+    }
 }
 
 fn reflect_player_through_point(mut transform: Transform, reflection_point: Transform) {

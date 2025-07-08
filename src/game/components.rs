@@ -132,6 +132,32 @@ pub struct AnimationIndices {
     pub last: usize,
 }
 
+#[derive(Component)]
+pub struct HitCounter {
+    pub count: f32,
+}
+
+impl HitCounter {
+    pub const HIT_INCREMENT: f32 = 10.0;
+    pub const DECREASE_PER_SECOND: f32 = 10.0;
+    pub const MIN_VALUE: f32 = 10.0;
+
+    pub fn new() -> Self {
+        Self { count: Self::MIN_VALUE }
+    }
+
+    pub fn hit(&mut self) {
+        self.count += Self::HIT_INCREMENT;
+    }
+
+    pub fn tick_down(&mut self, dt: Duration) {
+        self.count -= dt.as_secs_f32() * Self::DECREASE_PER_SECOND;
+        if self.count < Self::MIN_VALUE {
+            self.count = Self::MIN_VALUE;
+        }
+    }
+}
+
 #[derive(Component, Deref, DerefMut)]
 pub struct AnimationTimer(pub Timer);
 
