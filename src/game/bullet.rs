@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::AppState;
+use crate::{game::components::HitCounter, AppState};
 
 use super::{Bullet, DespawnOnRestart, GameDirection, LifeTimer, Materials, Player};
 
@@ -82,17 +82,19 @@ pub fn spawn_bullet(
 
 fn player_hit(
     mut commands: Commands,
-    mut player_velocities: Query<(Entity, &mut Velocity), (With<Player>, Without<Bullet>)>,
-    mut bullet_velocities: Query<(Entity, &Velocity), (With<Bullet>, Without<Player>)>,
+    mut player_velocities: Query<(Entity, &mut Velocity, &mut HitCounter), (With<Player>, Without<Bullet>)>,
+    bullet_velocities: Query<(Entity, &Velocity), (With<Bullet>, Without<Player>)>,
     mut ev_hit: EventReader<BulletHitEvent>,
 ) {
     for BulletHitEvent { target, bullet } in ev_hit.read() {
         // debug!("Bullet hit event!");
-        if let Ok((_, mut player_velocity)) = player_velocities.get_mut(*target) {
+        if let Ok((_, mut player_velocity, mut hit_counter)) = player_velocities.get_mut(*target) {
             // debug!("Matched player!");
             if let Ok((_, bullet_velocity)) = bullet_velocities.get(*bullet) {
+                debug!("Hit counter: {}", hit_counter.count);
                 //debug!("Matched bullet!");
-                player_velocity.linvel += bullet_velocity.linvel.normalize() * 10.0;
+                player_velocity.linvel += bullet_velocity.linvel.normalize() * hit_counter.count;
+                hit_counter.hit();
             }
         }
 
@@ -103,9 +105,8 @@ fn player_hit(
 }
 
 pub fn check_player_hit(
-    mut commands: Commands,
-    players: Query<(Entity, &Player)>,
-    bullets: Query<(Entity, &Bullet)>,
+    players: Query<Entity, With<Player>>,
+    bullets: Query<Entity, With<Bullet>>,
     mut contact_events: EventReader<CollisionEvent>,
     mut send_hit_event: EventWriter<BulletHitEvent>,
 ) {
@@ -113,8 +114,8 @@ pub fn check_player_hit(
         if let CollisionEvent::Started(h1, h2, _) = contact_event {
             // let player_result1 = players.get_mut(*h1);
             // let player_result2 = players.get_mut(*h2);
-            if let Ok((player_entity, player)) = players.get(*h1).or(players.get(*h2)) {
-                if let Ok((bullet_entity, bullet)) = bullets.get(*h1).or(bullets.get(*h2)) {
+            if let Ok(player_entity) = players.get(*h1).or(players.get(*h2)) {
+                if let Ok(bullet_entity) = bullets.get(*h1).or(bullets.get(*h2)) {
                     send_hit_event.send(BulletHitEvent {
                         target: player_entity,
                         bullet: bullet_entity,
