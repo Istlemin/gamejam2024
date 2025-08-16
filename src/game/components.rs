@@ -5,7 +5,7 @@ use std::{
 
 use bevy::{prelude::*, time::Stopwatch};
 
-use crate::geometry::{LineSegment, Polygon};
+use crate::geometry::{LineSegment, Polygon, Circle};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct PlatformDescription {
@@ -96,9 +96,9 @@ pub struct InversionType {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum PowerupState {
-    Mirror { r#type: MirrorType, placed: bool },
-    Inversion { r#type: InversionType, placed: bool },
+pub struct PowerupState {
+    pub powerup_t: PowerupType,
+    pub placed: bool,
 }
 
 #[derive(Component, Clone)]
@@ -128,10 +128,15 @@ pub struct Platform {
     polygon: Polygon,
 }
 
-#[derive(Component)]
-pub enum Powerup {
+#[derive(Copy, Clone, PartialEq)]
+pub enum PowerupType {
     Mirror(MirrorType),
     Inversion(InversionType),
+}
+
+#[derive(Component)]
+pub struct  Powerup {
+    pub powerup_type: PowerupType
 }
 
 #[derive(Component)]
@@ -186,6 +191,36 @@ impl Mirror {
         let offset =
             Vec2::from_angle(self.time.elapsed_secs() * MIRROR_ANGULAR_VEL) * MIRROR_HALF_HEIGHT;
         LineSegment::new(self.position + offset, self.position - offset)
+    }
+}
+
+#[derive(Component)]
+pub struct RoundMirror {
+    pub owner: Entity,
+    pub center_marker: Entity,
+    pub time: Stopwatch,
+    pub center: Vec2,
+    pub radius: f32,
+    pub ang: f32,
+}
+
+impl RoundMirror {
+    pub fn get_circle(&self) -> Circle {
+        Circle::new(self.center, self.radius)
+    }
+
+    pub fn get_angs(&self) -> (f32, f32) {
+        let base = self.time.elapsed_secs() * MIRROR_ANGULAR_VEL;
+        (base - self.ang / 2.0, base + self.ang / 2.0)
+    }
+
+    pub fn get_mirror_line(&self) -> LineSegment {
+        let circ = self.get_circle();
+        let angs = self.get_angs();
+        LineSegment::new(
+            circ.angle_position(angs.0), 
+            circ.angle_position(angs.1)
+        )
     }
 }
 

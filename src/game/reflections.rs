@@ -1,6 +1,6 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::prelude::*;
+use bevy::{log::tracing_subscriber::field::debug, prelude::*, render::{mesh::{Indices, PrimitiveTopology}, render_asset::RenderAssetUsages}, sprite::MaterialMesh2dBundle};
 use bevy_rapier2d::dynamics::Velocity;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     spawn_polygon, Bullet, DespawnOnRestart, Materials, MirrorAnimation, MirrorType, Platform,
-    Player,
+    Player, InversionType
 };
 
 pub struct ReflectionsPlugin;
@@ -21,6 +21,7 @@ impl Plugin for ReflectionsPlugin {
             .add_event::<PlatformsMirrorReflectionEvent>()
             .add_event::<PlayerMirrorReflectionEvent>()
             .add_event::<ReflectionEvent>()
+            .add_event::<InversionEvent>()
             .add_event::<PlatformsInversionEvent>()
             .add_event::<PlayerInversionEvent>()
             .add_systems(
@@ -93,8 +94,7 @@ fn mirror_reflect_platforms(
 #[derive(Event)]
 pub struct PlatformsInversionEvent {
     pub circle: Circle,
-    pub angle_start: Vec2,
-    pub angle_len: f32,
+    pub angs: (f32, f32),
 }
 
 fn invert_platforms(
@@ -106,19 +106,17 @@ fn invert_platforms(
 ) {
     for PlatformsInversionEvent {
         circle,
-        angle_start,
-        angle_len,
+        angs,
     } in inversion_event_reader.read()
     {
         dbg!("Running inversion");
         for (entity, transform, platform) in platforms.iter() {
             let polygon = platform.get_transformed_polygon(transform);
-            let line_a = Line::new_through(circle.center(), circle.center() + *angle_start);
-            let dir_b = Vec2::from_angle(*angle_len).rotate(*angle_start);
-            let line_b = Line::new_through(circle.center(), circle.center() + dir_b);
+            let line_a = Line::new_through(circle.center(), circle.angle_position(angs.0));
+            let line_b = Line::new_through(circle.center(), circle.angle_position(angs.1));
 
-            let a_inside = Vec2::from_angle(PI / 2.0).rotate(*angle_start);
-            let b_inside = Vec2::from_angle(-PI / 2.0).rotate(dir_b);
+            let a_inside = circle.center() + Vec2::from_angle(angs.0 + PI / 2.0);
+            let b_inside = circle.center() + Vec2::from_angle(angs.1 - PI / 2.0);
 
             let temp_1 = polygon.crop_to_halfplane(line_a, line_a.side(a_inside));
             let temp_2 = polygon.crop_to_halfplane(line_a, -line_a.side(a_inside));
@@ -136,61 +134,29 @@ fn invert_platforms(
                 .as_ref()
                 .and_then(|p| p.crop_to_halfplane(line_b, -line_b.side(b_inside)));
 
-            if *angle_len <= PI {
-                if let Some(both) = both_inside {
-                    commands.entity(entity).despawn();
-                    for poly in [one_inside_1, one_inside_2, both_outside]
-                        .into_iter()
-                        .flatten()
-                    {
-                        spawn_polygon(
-                            Vec2::new(0.0, 0.0),
-                            poly,
-                            &mut commands,
-                            &materials,
-                            &mut meshes,
-                        );
-                    }
-
-                    if let Some(inverted) = both.invert_over_circle(*circle) {
-                        spawn_polygon(
-                            Vec2::new(0.0, 0.0),
-                            inverted,
-                            &mut commands,
-                            &materials,
-                            &mut meshes,
-                        );
-                    }
-                }
-            } else {
-                if both_inside.is_none() && one_inside_1.is_none() && one_inside_2.is_none() {
-                    continue;
-                }
+            if let Some(both) = both_inside {
                 commands.entity(entity).despawn();
-
-                if let Some(outside) = both_outside {
+                for poly in [one_inside_1, one_inside_2, both_outside]
+                    .into_iter()
+                    .flatten()
+                {
                     spawn_polygon(
                         Vec2::new(0.0, 0.0),
-                        outside,
+                        poly,
                         &mut commands,
                         &materials,
                         &mut meshes,
                     );
                 }
 
-                for poly in [one_inside_1, one_inside_2, both_inside]
-                    .into_iter()
-                    .flatten()
-                {
-                    if let Some(new_poly) = poly.invert_over_circle(*circle) {
-                        spawn_polygon(
-                            Vec2::new(0.0, 0.0),
-                            new_poly,
-                            &mut commands,
-                            &materials,
-                            &mut meshes,
-                        );
-                    }
+                if let Some(inverted) = both.invert_over_circle(*circle) {
+                    spawn_polygon(
+                        Vec2::new(0.0, 0.0),
+                        inverted,
+                        &mut commands,
+                        &materials,
+                        &mut meshes,
+                    );
                 }
             }
         }
@@ -200,8 +166,7 @@ fn invert_platforms(
 #[derive(Event)]
 pub struct PlayerInversionEvent {
     pub circle: Circle,
-    pub angle_start: Vec2,
-    pub angle_len: f32,
+    pub angs: (f32, f32),
 }
 
 fn invert_players(
@@ -210,8 +175,7 @@ fn invert_players(
 ) {
     for PlayerInversionEvent {
         circle,
-        angle_start,
-        angle_len,
+        angs,
     } in reflection_event_reader.read()
     {
         players.iter_mut().for_each(|(_, mut transform, mut velocity)| {
@@ -219,11 +183,9 @@ fn invert_players(
             let velo_2d = velocity.linvel;
 
             if signed_area(&vec![
-                angle_start.normalize(),
+                Vec2::from_angle(angs.0),
                 (pos - circle.center()).normalize(),
-                Vec2::from_angle(*angle_len)
-                    .rotate(*angle_start)
-                    .normalize(),
+                Vec2::from_angle(angs.1),
             ]) >= 0.0
             {
                 let new_pos = pos
@@ -318,6 +280,39 @@ fn spawn_mirror_effect(commands: &mut Commands, mirror: LineSegment) {
     ));
 }
 
+fn get_triangle_mesh(ang: f32) -> Mesh {
+    let vertices = vec![Vec3::ZERO, Vec3::X, Vec2::from_angle(ang).extend(0.0)]; // Center
+    let uvs = vec![Vec2::ZERO, Vec2::X, Vec2::Y];
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U32(vec![0, 1, 2]));
+    mesh
+}
+
+fn spawn_round_mirror_effect(commands: &mut Commands, circle: Circle, angs: (f32, f32),
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>
+) {
+    commands.spawn((
+        MaterialMesh2dBundle {
+            mesh: meshes.add(get_triangle_mesh(angs.1 - angs.0)).into(),
+            transform: Transform::from_translation(circle.center().extend(0.0)).with_rotation(
+                Quat::from_rotation_z(
+                    angs.0,
+                ),
+            ).with_scale(Vec3::new(1000.0, 1000.0, 1.0)),
+            material: materials.add(ColorMaterial::from_color(Color::WHITE)),
+            ..Default::default()
+        },
+        MirrorAnimation {
+            timer: Timer::new(Duration::from_millis(500), TimerMode::Once),
+        },
+        DespawnOnRestart {},
+    ));
+}
+
 #[derive(Event)]
 
 pub struct ReflectionEvent {
@@ -325,12 +320,25 @@ pub struct ReflectionEvent {
     pub mirror: LineSegment,
 }
 
+#[derive(Event)]
+
+pub struct InversionEvent {
+    pub inversion_type: InversionType,
+    pub circle: Circle,
+    pub angs: (f32, f32),
+}
+
 fn mirror_use(
     mut reflection_event_reader: EventReader<ReflectionEvent>,
+    mut inversion_event_reader: EventReader<InversionEvent>,
     mut send_bullet_mirref_event: EventWriter<BulletMirrorReflectionEvent>,
     mut send_player_mirref_event: EventWriter<PlayerMirrorReflectionEvent>,
     mut send_platforms_mirref_event: EventWriter<PlatformsMirrorReflectionEvent>,
+    mut send_player_inversion_event: EventWriter<PlayerInversionEvent>,
+    mut send_platforms_inversion_event: EventWriter<PlatformsInversionEvent>,
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>
 ) {
     for ReflectionEvent {
         mirror,
@@ -348,20 +356,43 @@ fn mirror_use(
         }
         spawn_mirror_effect(&mut commands, *mirror);
     }
+
+    for InversionEvent {
+        inversion_type,
+        circle,
+        angs,
+    } in inversion_event_reader.read()
+    {
+        if inversion_type.reflect_platforms {
+            send_platforms_inversion_event.send(PlatformsInversionEvent { circle: *circle, angs: *angs });
+        }
+        if inversion_type.reflect_players {
+            send_player_inversion_event.send(PlayerInversionEvent { circle: *circle, angs: *angs });
+        }
+        spawn_round_mirror_effect(&mut commands, *circle, *angs, &mut meshes, &mut materials);
+    }
 }
 
 fn animate_mirror_effect(
-    mut mirrors: Query<(Entity, &mut Sprite, &mut MirrorAnimation)>,
+    mut mirrors: Query<(Entity, Option<&mut Sprite>, Option<&Handle<ColorMaterial>>, &mut MirrorAnimation)>,
     mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     time: Res<Time>,
 ) {
-    for (entity, mut sprite, mut mirror) in mirrors.iter_mut() {
+    for (entity, sprite_opt, material_handle_opt, mut mirror) in mirrors.iter_mut() {
         mirror.timer.tick(time.delta());
 
         if mirror.timer.finished() {
             commands.entity(entity).despawn();
         } else {
-            sprite.color.set_alpha(mirror.timer.fraction_remaining());
+            if let Some(mut sprite) = sprite_opt {
+                sprite.color.set_alpha(mirror.timer.fraction_remaining());
+            }
+            if let Some(material_handle) = material_handle_opt {
+                if let Some(material) = materials.get_mut(material_handle) {
+                    material.color.set_alpha(mirror.timer.fraction_remaining());
+                }
+            }
         }
     }
 }

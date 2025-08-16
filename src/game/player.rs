@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -10,9 +11,9 @@ use crate::AppState;
 
 use super::MapDescription;
 use super::{
-    butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer,
+    butterfly::ButterflyEvent, reflections::{ReflectionEvent, InversionEvent}, AnimationIndices, AnimationTimer,
     BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType,
-    Platform, Player, PlayerControls, PowerupState,
+    Platform, Player, PlayerControls, PowerupType, PowerupState, RoundMirror
 };
 
 pub struct PlayerPlugin;
@@ -25,9 +26,9 @@ pub struct GameOverEvent {
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GameOverEvent>()
-            .add_event::<MirrorSpawnEvent>()
+            .add_event::<TargetIndicatorSpawnEvent>()
             .add_event::<PlayerSpawnEvent>()
-            .add_event::<MirrorUseEvent>()
+            .add_event::<PowerupApplyEffect>()
             .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
@@ -40,7 +41,7 @@ impl Plugin for PlayerPlugin {
                         animate_sprite,
                         draw_mirrors,
                         spawn_mirror,
-                        use_mirror,
+                        apply_powerups,
                     )
                         .run_if(in_state(AppState::InGame)),
                 ),
@@ -287,23 +288,24 @@ pub fn player_shoot(
 pub fn player_powerup_press(
     player: &mut Player,
     player_entity: Entity,
-    send_mirror_spawn_event: &mut EventWriter<MirrorSpawnEvent>,
+    send_indicator_spawn_event: &mut EventWriter<TargetIndicatorSpawnEvent>,
 ) {
     player.powerup = if let Some(powerup) = &player.powerup {
         debug!("Powerup activated");
         match powerup {
-            PowerupState::Mirror {
-                r#type,
+            PowerupState {
+                powerup_t,
                 placed: false,
             } => {
-                send_mirror_spawn_event.send(MirrorSpawnEvent {
+                send_indicator_spawn_event.send(TargetIndicatorSpawnEvent {
+                    powerup_t: *powerup_t,
                     owner: player_entity,
                 });
-                Some(PowerupState::Mirror {
-                    r#type: *r#type,
+                Some(PowerupState {
+                    powerup_t: *powerup_t,
                     placed: true,
                 })
-            }
+            },
             state => Some(*state),
         }
     } else {
@@ -314,18 +316,18 @@ pub fn player_powerup_press(
 pub fn player_powerup_release(
     player: &mut Player,
     player_entity: Entity,
-    send_mirror_use_event: &mut EventWriter<MirrorUseEvent>,
+    send_powerup_apply_effect: &mut EventWriter<PowerupApplyEffect>,
 ) {
     player.powerup = if let Some(powerup) = player.powerup {
         debug!("Powerup released");
         match powerup {
-            PowerupState::Mirror {
-                r#type,
+            PowerupState {
+                powerup_t,
                 placed: true,
             } => {
-                send_mirror_use_event.send(MirrorUseEvent {
+                send_powerup_apply_effect.send(PowerupApplyEffect {
                     owner: player_entity,
-                    mirror_type: r#type,
+                    powerup_t: powerup_t,
                 });
                 None
             }
@@ -337,75 +339,143 @@ pub fn player_powerup_release(
 }
 
 #[derive(Event)]
-pub struct MirrorUseEvent {
+pub struct PowerupApplyEffect {
     pub owner: Entity,
-    pub mirror_type: MirrorType,
+    pub powerup_t: PowerupType,
 }
 
 #[derive(Event)]
-pub struct MirrorSpawnEvent {
+pub struct TargetIndicatorSpawnEvent {
     pub owner: Entity,
+    pub powerup_t: PowerupType,
 }
 
-fn use_mirror(
+fn apply_powerups(
     mut commands: Commands,
-    mut events: EventReader<MirrorUseEvent>,
+    mut events: EventReader<PowerupApplyEffect>,
     mut reflection_events_send: EventWriter<ReflectionEvent>,
+    mut inversion_events_send: EventWriter<InversionEvent>,
     mirrors: Query<(Entity, &Mirror)>,
+    round_mirrors: Query<(Entity, &RoundMirror)>,
 ) {
-    for MirrorUseEvent { owner, mirror_type } in events.read() {
-        for (entity, mirror) in mirrors.iter().filter(|(_, mirror)| mirror.owner == *owner) {
-            reflection_events_send.send(ReflectionEvent {
-                mirror_type: *mirror_type,
-                mirror: mirror.get_line(),
-            });
-            commands.entity(entity).despawn();
+    for PowerupApplyEffect { owner, powerup_t } in events.read() {
+        if let PowerupType::Mirror(mirror_type) = powerup_t
+        {
+            for (entity, mirror) in mirrors.iter().filter(|(_, mirror)| mirror.owner == *owner) {
+                reflection_events_send.send(ReflectionEvent {
+                    mirror_type: *mirror_type,
+                    mirror: mirror.get_line(),
+                });
+                commands.entity(entity).despawn();
+            }
+        }
+        if let PowerupType::Inversion(inversion_type) = powerup_t
+        {
+            for (entity, round_mirror) in round_mirrors.iter().filter(|(_, round_mirror)| round_mirror.owner == *owner) {
+                inversion_events_send.send(InversionEvent {
+                    inversion_type: *inversion_type,
+                    circle: round_mirror.get_circle(),
+                    angs: round_mirror.get_angs(),
+                });
+                commands.entity(round_mirror.center_marker).despawn();
+                commands.entity(entity).despawn();
+            }
         }
     }
 }
 
 fn spawn_mirror(
     mut commands: Commands,
-    mut events: EventReader<MirrorSpawnEvent>,
+    mut events: EventReader<TargetIndicatorSpawnEvent>,
     players: Query<&Transform>,
     asset_server: Res<AssetServer>,
 ) {
-    for MirrorSpawnEvent { owner } in events.read() {
+    for TargetIndicatorSpawnEvent { owner, powerup_t } in events.read() {
         if let Ok(transform) = players.get(*owner) {
-            commands.spawn((
-                SpriteBundle {
-                    texture: asset_server.load("textures/mirror.png"),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(0.7, 1.5)),
+            if let PowerupType::Mirror(_) = *powerup_t
+            {
+                commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/mirror.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(0.7, 1.5)),
+                            ..default()
+                        },
                         ..default()
                     },
-                    ..default()
-                },
-                Mirror {
-                    owner: *owner,
-                    time: Stopwatch::new(),
-                    position: transform.translation.xy(),
-                },
-                DespawnOnRestart {},
-            ));
+                    Mirror {
+                        owner: *owner,
+                        time: Stopwatch::new(),
+                        position: transform.translation.xy(),
+                    },
+                    DespawnOnRestart {},
+                ));
+            }
+            else if let PowerupType::Inversion(_) = *powerup_t
+            {
+                let center_marker = commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/round_mirror_center.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(1.0, 1.0)),
+                            ..default()
+                        },
+                        transform: Transform::from_translation(transform.translation.xy().extend(0.0)),
+                        ..default()
+                    },
+                    DespawnOnRestart {},
+                )).id();
+                commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/round_mirror.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(1.4, 1.5)),
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    RoundMirror {
+                        owner: *owner,
+                        time: Stopwatch::new(),
+                        center: transform.translation.xy(),
+                        ang: PI / 6.0,
+                        center_marker,
+                        radius: 8.0
+                    },
+                    DespawnOnRestart {},
+                ));
+            }
         }
     }
 }
 
 fn draw_mirrors(
-    mut mirrors: Query<(&mut Mirror, &mut Transform), Without<Player>>,
+    mut mirrors: Query<(&mut Mirror, &mut Transform), (Without<Player>, Without<RoundMirror>)>,
+    mut round_mirrors: Query<(&mut RoundMirror, &mut Transform), (Without<Player>, Without<Mirror>)>,
     time: Res<Time>,
 ) {
     for (mut mirror, mut transform) in mirrors.iter_mut() {
         mirror.time.tick(time.delta());
-        let mirror = mirror.get_line();
+        let mirror_line = mirror.get_line();
 
-        transform.translation = mirror.mid_point().extend(0.0);
+        transform.translation = mirror_line.mid_point().extend(0.0);
         transform.rotation = Quat::from_axis_angle(
             Vec3::Z,
-            Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
+            Vec2::new(0.0, 1.0).angle_between(mirror_line.get_line().direction()),
         );
-        transform.scale = Vec3::new(1.0, mirror.length(), 1.0);
+        transform.scale = Vec3::new(1.0, mirror_line.length(), 1.0);
+    }
+
+    for (mut round_mirror, mut transform) in round_mirrors.iter_mut() {
+        round_mirror.time.tick(time.delta());
+        let mirror_line = round_mirror.get_mirror_line();
+
+        transform.translation = mirror_line.mid_point().extend(0.0);
+        transform.rotation = Quat::from_axis_angle(
+            Vec3::Z,
+            Vec2::new(0.0, 1.0).angle_between(mirror_line.get_line().direction()),
+        );
+        transform.scale = Vec3::new(1.0, mirror_line.length(), 1.0);
     }
 }
 
@@ -421,8 +491,8 @@ pub fn player_controller(
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
     mut app_state: ResMut<NextState<AppState>>,
-    mut send_mirror_use_event: EventWriter<MirrorUseEvent>,
-    mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
+    mut send_mirror_use_event: EventWriter<PowerupApplyEffect>,
+    mut send_mirror_spawn_event: EventWriter<TargetIndicatorSpawnEvent>,
     mut send_butterfly_event: EventWriter<ButterflyEvent>,
 ) {
     for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
@@ -500,11 +570,4 @@ fn check_death_collision(
     //         }
     //     }
     // }
-}
-
-fn reflect_player_through_point(mut transform: Transform, reflection_point: Transform) {
-    let pos = transform.translation;
-    let reflection_pos = reflection_point.translation;
-    let new_pos = reflection_pos + reflection_pos - pos;
-    transform = transform.with_translation(new_pos);
 }

@@ -60,3 +60,17 @@ pub fn get_map1() -> MapDescription {
         death_zone: -40.0,
     }
 }
+
+pub fn get_map2() -> MapDescription {
+    MapDescription {
+        platforms: vec![
+            PlatformDescription {
+                location: Vec2::new(0.0, 0.0),
+                width: 60.0,
+                height: 2.0,
+            },
+        ],
+
+        death_zone: -40.0,
+    }
+}

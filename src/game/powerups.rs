@@ -13,7 +13,7 @@ use crate::{
     AppState,
 };
 
-use super::{Player, PlayerSpawnEvent, Powerup, PowerupState};
+use super::{Player, PlayerSpawnEvent, Powerup, PowerupType, PowerupState};
 
 pub struct PowerupsPlugin;
 
@@ -48,14 +48,14 @@ impl Plugin for PowerupsPlugin {
     }
 }
 
-fn generate_powerup_type(rng: &mut ThreadRng) -> Powerup {
-    if rng.random_bool(0.3) {
+fn generate_powerup_type(rng: &mut ThreadRng) -> PowerupType {
+    if rng.random_bool(0.35) {
         let inversion_type = InversionType {
             reflect_players: rng.random_bool(0.5),
             reflect_platforms: rng.random_bool(0.5),
         };
         if inversion_type.reflect_platforms || inversion_type.reflect_players {
-            Powerup::Inversion(inversion_type)
+            PowerupType::Inversion(inversion_type)
         } else {
             generate_powerup_type(rng)
         }
@@ -69,7 +69,7 @@ fn generate_powerup_type(rng: &mut ThreadRng) -> Powerup {
             || mirror_type.reflect_players
             || (mirror_type.reflect_bullets && rng.random_bool(0.5))
         {
-            Powerup::Mirror(mirror_type)
+            PowerupType::Mirror(mirror_type)
         } else {
             generate_powerup_type(rng)
         }
@@ -111,9 +111,7 @@ fn spawn_powerup(
             },
         };
 
-        info!("Spawning Powerup at {:?} {:?}", x, y);
-
-        let powerup_type: Powerup = generate_powerup_type(&mut rng);
+        let powerup_type: PowerupType = generate_powerup_type(&mut rng);
 
         commands.spawn((
             MaterialMesh2dBundle {
@@ -128,7 +126,7 @@ fn spawn_powerup(
             ActiveEvents::COLLISION_EVENTS,
             DespawnOnRestart {},
             LifeTimer(Timer::from_seconds(10.0, TimerMode::Once)),
-            powerup_type,
+            Powerup { powerup_type },
             mover,
         ));
     }
@@ -156,12 +154,12 @@ fn handle_powerup_collection(
                 commands.entity(*powerup_entity).despawn();
 
                 player.powerup = Some(match *powerup {
-                    Powerup::Mirror(mirror_type) => PowerupState::Mirror {
-                        r#type: mirror_type,
+                    Powerup { powerup_type: PowerupType::Mirror(mirror_type) } => PowerupState {
+                        powerup_t: PowerupType::Mirror(mirror_type),
                         placed: false,
                     },
-                    Powerup::Inversion(inversion_type) => PowerupState::Inversion {
-                        r#type: inversion_type,
+                    Powerup { powerup_type: PowerupType::Inversion(inversion_type) } => PowerupState {
+                        powerup_t: PowerupType::Inversion(inversion_type),
                         placed: false,
                     },
                 });
@@ -211,13 +209,13 @@ struct PowerupTracker {
 fn get_powerup_color(state: Option<PowerupState>) -> Color {
     match state {
         None => Color::NONE,
-        Some(PowerupState::Mirror { r#type, .. }) => Color::srgba(
+        Some(PowerupState { powerup_t: PowerupType::Mirror(r#type), .. }) => Color::srgba(
             if r#type.reflect_bullets { 0.6 } else { 0.0 },
             if r#type.reflect_platforms { 0.8 } else { 0.0 },
             if r#type.reflect_players { 0.8 } else { 0.0 },
             1.0,
         ),
-        Some(PowerupState::Inversion { r#type, .. }) => Color::srgba(
+        Some(PowerupState { powerup_t: PowerupType::Inversion(r#type), .. }) => Color::srgba(
             0.0,
             if r#type.reflect_platforms { 0.8 } else { 0.0 },
             if r#type.reflect_players { 0.8 } else { 0.0 },
@@ -238,10 +236,7 @@ fn check_powerup_tracker(
                 border_radius
                     .set(Box::new(BorderRadius::all(Val::Percent(
                         match player.powerup {
-                            Some(PowerupState::Inversion {
-                                r#type: _,
-                                placed: _,
-                            }) => 50.0,
+                            Some(PowerupState { powerup_t: PowerupType::Inversion(..), .. }) => 50.0,
                             _ => 0.0,
                         },
                     ))))

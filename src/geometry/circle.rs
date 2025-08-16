@@ -22,4 +22,8 @@ impl Circle {
     pub fn radius(&self) -> f32 {
         self.radius
     }
+
+    pub fn angle_position(&self, angle: f32) -> Point {
+        self.center + Point::from_angle(angle) * self.radius
+    }
 }
