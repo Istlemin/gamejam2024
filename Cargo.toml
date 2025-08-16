@@ -15,15 +15,15 @@ name = "bin"
 path = "src/main.rs"
 
 [dependencies]
-bevy = "0.12"
-rand = "0.8.5"
+bevy = "0.13"
+rand = "0.9"
 uuid = { version = "1", features = ["rng"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
-bevy_rapier2d = { version = "0.24", features = ["wasm-bindgen"] }
+bevy_rapier2d = { version = "0.26", features = ["wasm-bindgen"] }
 uuid = { version = "1", features = ["rng-getrandom"] }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy_rapier2d = { version = "0.24" }
+bevy_rapier2d = { version = "0.26" }

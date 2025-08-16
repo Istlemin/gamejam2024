@@ -214,7 +214,7 @@ fn invert_players(
         angle_len,
     } in reflection_event_reader.read()
     {
-        players.for_each_mut(|(_, mut transform, mut velocity)| {
+        players.iter_mut().for_each(|(_, mut transform, mut velocity)| {
             let pos = transform.translation.xy();
             let velo_2d = velocity.linvel;
 
@@ -253,7 +253,7 @@ fn mirror_reflect_bullets(
     mut reflection_event_reader: EventReader<BulletMirrorReflectionEvent>,
 ) {
     for event in reflection_event_reader.read() {
-        bullets.for_each_mut(|(_, mut transform, mut velocity)| {
+        bullets.iter_mut().for_each(|(_, mut transform, mut velocity)| {
             let pos = transform.translation.xy();
             let velo_2d = velocity.linvel;
             let line = event.mirror.get_line();
@@ -280,7 +280,7 @@ fn mirror_reflect_players(
     mut reflection_event_reader: EventReader<PlayerMirrorReflectionEvent>,
 ) {
     for event in reflection_event_reader.read() {
-        players.for_each_mut(|(_, mut transform, mut velocity)| {
+        players.iter_mut().for_each(|(_, mut transform, mut velocity)| {
             let pos = transform.translation.xy();
             let velo_2d = velocity.linvel;
             let line = event.mirror.get_line();
@@ -361,7 +361,7 @@ fn animate_mirror_effect(
         if mirror.timer.finished() {
             commands.entity(entity).despawn();
         } else {
-            sprite.color.set_a(mirror.timer.percent_left());
+            sprite.color.set_a(mirror.timer.fraction_remaining());
         }
     }
 }

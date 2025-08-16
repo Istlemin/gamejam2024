@@ -33,11 +33,11 @@ pub struct Butterfly {}
 fn spawn_butterfly(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let texture_handle = asset_server.load("textures/butterfly.png");
     let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(70.0, 65.0), 13, 7, None, None);
+        TextureAtlasLayout::from_grid(Vec2::new(70.0, 65.0), 13, 7, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     let animation_indices = AnimationIndices { first: 0, last: 86 };
     let scale = Vec3 {
@@ -49,9 +49,10 @@ fn spawn_butterfly(
     commands.spawn((
         Butterfly {},
         SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle,
-            sprite: TextureAtlasSprite::new(animation_indices.first),
+            atlas: TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
+            sprite: Sprite::default(),
             transform: Transform::from_xyz(0., 0., 0.).with_scale(scale),
+            texture: texture_handle,
             ..Default::default()
         },
         animation_indices,

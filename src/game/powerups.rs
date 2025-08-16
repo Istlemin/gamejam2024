@@ -6,6 +6,7 @@ use bevy_rapier2d::{
     pipeline::CollisionEvent,
 };
 use rand::prelude::*;
+use rand::rng;
 
 use crate::{
     game::{DespawnOnRestart, LifeTimer, MirrorType},
@@ -64,16 +65,16 @@ fn spawn_powerup(
     time: Res<Time>,
 ) {
     for _ in powerup_event.read() {
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
-        let x = POWERUP_XMIN + rng.gen::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
-        let y = POWERUP_YMIN + rng.gen::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
+        let x = POWERUP_XMIN + rng.random::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
+        let y = POWERUP_YMIN + rng.random::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
 
         let mover = PowerupMover {
-            speed: 0.25 + 1.5 * rng.gen::<f32>(),
-            scale: 1.5 + 3.0 * rng.gen::<f32>(),
+            speed: 0.25 + 1.5 * rng.random::<f32>(),
+            scale: 1.5 + 3.0 * rng.random::<f32>(),
             offset: Vec2 { x, y },
-            shape: match rng.gen_range(0..4) {
+            shape: match rng.random_range(0..4) {
                 0 => Shape::Circle,
                 1 => Shape::Infinity,
                 2 => Shape::Horizontal,
@@ -84,12 +85,12 @@ fn spawn_powerup(
 
         info!("Spawning Powerup at {:?} {:?}", x, y);
 
-        let reflections = thread_rng().gen_range(1..8);
+        let reflections = rng.random_range(1..8);
 
         commands.spawn((
             MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(0.5).into()).into(),
-                material: materials.add(asset_server.load("textures/orb.png").into()),
+                mesh: meshes.add(Circle::new(0.5)).into(),
+                material: materials.add(asset_server.load("textures/orb.png")),
                 transform: Transform::from_translation(
                     mover.get_position(time.elapsed_seconds()).extend(0.0),
                 ),
@@ -169,8 +170,8 @@ fn check_powerup_spawn(
 ) {
     let count = active_powerups.iter().len();
 
-    if random::<f32>() < POWERUP_PROBABILITY * (0.6 as f32).powi(count as i32) {
-        spawn_event.send(PowerupSpawnEvent {})
+    if rng().random::<f32>() < POWERUP_PROBABILITY * (0.6 as f32).powi(count as i32) {
+        spawn_event.send(PowerupSpawnEvent {});
     }
 }
 
@@ -195,7 +196,7 @@ fn check_powerup_color(
     mut query: Query<(&mut BackgroundColor, &PowerupTracker)>,
     players: Query<&Player>,
 ) {
-    query.for_each_mut(|(mut color, powerup_tracker)| {
+    query.iter_mut().for_each(|(mut color, powerup_tracker)| {
         if let Ok(player) = players.get(powerup_tracker.player) {
             color.0 = get_powerup_color(player.powerup);
         }
@@ -270,7 +271,7 @@ impl PowerupMover {
 }
 
 fn move_powerups(mut powerups: Query<(&mut Transform, &PowerupMover)>, time: Res<Time>) {
-    powerups.for_each_mut(|(mut transform, mover)| {
+    powerups.iter_mut().for_each(|(mut transform, mover)| {
         transform.translation = mover.get_position(time.elapsed_seconds()).extend(0.0)
     });
 }

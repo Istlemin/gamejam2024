@@ -242,7 +242,7 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
 }
 
 fn menu_action(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),

@@ -235,7 +235,7 @@ impl Croppable for Polygon {
 
 impl From<&Polygon> for Mesh {
     fn from(polygon: &Polygon) -> Self {
-        Mesh::new(PrimitiveTopology::TriangleList)
+        Mesh::new(PrimitiveTopology::TriangleList, bevy::render::render_asset::RenderAssetUsages::default())
             .with_inserted_attribute(
                 Mesh::ATTRIBUTE_POSITION,
                 polygon
@@ -256,11 +256,11 @@ impl From<&Polygon> for Mesh {
                     .map(Vec2::to_array)
                     .collect::<Vec<_>>(),
             )
-            .with_indices(Some(Indices::U32(
+            .with_inserted_indices(Indices::U32(
                 (1..(polygon.num_vertices() as u32 - 1))
                     .flat_map(|i| [0, i, i + 1])
                     .collect::<Vec<_>>(),
-            )))
+            ))
     }
 }
 

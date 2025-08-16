@@ -53,22 +53,22 @@ fn animate_sprite(
     mut query: Query<(
         &AnimationIndices,
         &mut AnimationTimer,
-        &mut TextureAtlasSprite,
+        &mut TextureAtlas,
         &Player,
     )>,
 ) {
-    for (indices, mut timer, mut sprite, player) in &mut query {
+    for (indices, mut timer, mut atlas, player) in &mut query {
         if player.is_running {
             timer.tick(time.delta());
             if timer.just_finished() {
-                sprite.index = if sprite.index == indices.last {
+                atlas.index = if atlas.index == indices.last {
                     indices.first
                 } else {
-                    sprite.index + 1
+                    atlas.index + 1
                 };
             }
         } else {
-            sprite.index = 0;
+            atlas.index = 0;
         }
     }
 }
@@ -76,7 +76,7 @@ fn animate_sprite(
 pub fn spawn_players(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     mut spawn_event_sender: EventWriter<PlayerSpawnEvent>,
     controls: Res<PlayerControls>,
 ) {
@@ -115,13 +115,13 @@ fn spawn_player(
     texture: String,
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlasLayout>>,
     key_bindings: KeyBindings,
     spawn_event_sender: &mut EventWriter<PlayerSpawnEvent>,
 ) {
     let texture_handle = asset_server.load(texture);
     let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1, None, None);
+        TextureAtlasLayout::from_grid(Vec2::new(24.0, 24.0), 7, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     // Use only the subset of sprites in the sheet that make up the run animation
     let animation_indices = AnimationIndices { first: 1, last: 6 };
@@ -133,9 +133,10 @@ fn spawn_player(
 
     let entity = commands.spawn((
         SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle,
-            sprite: TextureAtlasSprite::new(animation_indices.first),
+            atlas: TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
+            sprite: Sprite::default(),
             transform: position.with_scale(scale),
+            texture: texture_handle,
             ..Default::default()
         },
         animation_indices,
@@ -168,7 +169,7 @@ fn spawn_player(
     spawn_event_sender.send(PlayerSpawnEvent {
         player_id,
         player: entity.id(),
-    })
+    });
 }
 
 fn camera_follow_players(
@@ -204,7 +205,7 @@ fn camera_follow_players(
 pub fn player_go_left(
     player: &mut Player,
     velocity: &mut Velocity,
-    sprite: &mut TextureAtlasSprite,
+    sprite: &mut Sprite,
 ) {
     if velocity.linvel.x > -player.speed {
         velocity.linvel += Vec2::new(-player.speed * 0.2, 0.);
@@ -218,7 +219,7 @@ pub fn player_go_left(
 pub fn player_go_right(
     player: &mut Player,
     velocity: &mut Velocity,
-    sprite: &mut TextureAtlasSprite,
+    sprite: &mut Sprite,
 ) {
     if velocity.linvel.x < player.speed {
         velocity.linvel += Vec2::new(player.speed * 0.2, 0.);
@@ -410,13 +411,13 @@ fn draw_mirrors(
 }
 
 pub fn player_controller(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut players: Query<(
         Entity,
         &mut Player,
         &mut Velocity,
         &mut Transform,
-        &mut TextureAtlasSprite,
+        &mut Sprite,
     )>,
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
@@ -450,7 +451,7 @@ pub fn player_controller(
             player_powerup_release(&mut player, entity, &mut send_mirror_use_event)
         }
     }
-    if keyboard_input.just_pressed(KeyCode::R) {
+    if keyboard_input.just_pressed(KeyCode::KeyR) {
         app_state.set(AppState::MainMenu);
     }
 }
@@ -484,7 +485,7 @@ fn check_death_collision(
         if transform.translation.y < map.death_zone {
             send_game_over_event.send(GameOverEvent {
                 lost_player: player.id,
-            })
+            });
         }
     }
     // for contact_event in contact_events.read() {
