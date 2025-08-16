@@ -1,7 +1,9 @@
 use bevy::{prelude::*, window::PresentMode, window::WindowMode};
-use wasm_bindgen::prelude::wasm_bindgen;
 // use wasm_bindgen::prelude::*;
 use bevy::log::LogPlugin;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 mod game;
 mod menu;
@@ -19,7 +21,7 @@ use menu::MenuPlugin;
 
 mod geometry;
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn run() {
     let mut app = App::new();
 
