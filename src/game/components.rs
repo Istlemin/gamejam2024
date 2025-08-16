@@ -90,8 +90,15 @@ pub struct MirrorType {
 }
 
 #[derive(Copy, Clone, PartialEq)]
+pub struct InversionType {
+    pub reflect_players: bool,
+    pub reflect_platforms: bool,
+}
+
+#[derive(Copy, Clone, PartialEq)]
 pub enum PowerupState {
     Mirror { r#type: MirrorType, placed: bool },
+    Inversion { r#type: InversionType, placed: bool },
 }
 
 #[derive(Component, Clone)]
@@ -124,6 +131,7 @@ pub struct Platform {
 #[derive(Component)]
 pub enum Powerup {
     Mirror(MirrorType),
+    Inversion(InversionType),
 }
 
 #[derive(Component)]
