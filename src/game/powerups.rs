@@ -183,12 +183,12 @@ struct PowerupTracker {
 fn get_powerup_color(state: Option<PowerupState>) -> Color {
     match state {
         None => Color::NONE,
-        Some(PowerupState::Mirror { r#type, .. }) => Color::Rgba {
-            red: if r#type.reflect_bullets { 0.6 } else { 0.0 },
-            green: if r#type.reflect_platforms { 0.8 } else { 0.0 },
-            blue: if r#type.reflect_players { 0.8 } else { 0.0 },
-            alpha: 1.0,
-        },
+        Some(PowerupState::Mirror { r#type, .. }) => Color::srgba(
+            if r#type.reflect_bullets { 0.6 } else { 0.0 },
+            if r#type.reflect_platforms { 0.8 } else { 0.0 },
+            if r#type.reflect_players { 0.8 } else { 0.0 },
+            1.0,
+        ),
     }
 }
 

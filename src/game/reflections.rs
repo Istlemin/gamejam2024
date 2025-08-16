@@ -361,7 +361,7 @@ fn animate_mirror_effect(
         if mirror.timer.finished() {
             commands.entity(entity).despawn();
         } else {
-            sprite.color.set_a(mirror.timer.fraction_remaining());
+            sprite.color.set_alpha(mirror.timer.fraction_remaining());
         }
     }
 }

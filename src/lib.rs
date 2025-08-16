@@ -44,7 +44,7 @@ pub fn run() {
             })
             .set(ImagePlugin::default_nearest()),
     )
-    .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+    .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.04)))
     .insert_resource(PlayerControls {
         controls: vec![
             KeyBindings {

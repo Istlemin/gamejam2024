@@ -127,10 +127,10 @@ fn setup(
     commands.insert_resource(rapier_config);
 
     commands.insert_resource(Materials {
-        player_material: Color::rgb(0.969, 0.769, 0.784).into(),
+        player_material: Color::srgb(0.969, 0.769, 0.784).into(),
         floor_material: materials.add(floor_texture),
-        death_zone_material: Color::rgb(0.5, 0.0, 0.).into(),
-        bullet_material: Color::rgb(0.8, 0.8, 0.).into(),
+        death_zone_material: Color::srgb(0.5, 0.0, 0.).into(),
+        bullet_material: Color::srgb(0.8, 0.8, 0.).into(),
     });
     commands.insert_resource(get_map1());
     commands.spawn(new_camera_2d());

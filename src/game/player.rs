@@ -121,7 +121,7 @@ fn spawn_player(
 ) {
     let texture_handle = asset_server.load(texture);
     let texture_atlas =
-        TextureAtlasLayout::from_grid(Vec2::new(24.0, 24.0), 7, 1, None, None);
+        TextureAtlasLayout::from_grid(UVec2::new(24, 24), 7, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     // Use only the subset of sprites in the sheet that make up the run animation
     let animation_indices = AnimationIndices { first: 1, last: 6 };
@@ -132,9 +132,8 @@ fn spawn_player(
     };
 
     let entity = commands.spawn((
-        SpriteSheetBundle {
-            atlas: TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
-            sprite: Sprite::default(),
+        TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
+        SpriteBundle {
             transform: position.with_scale(scale),
             texture: texture_handle,
             ..Default::default()

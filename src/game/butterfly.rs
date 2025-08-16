@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, transform};
 use bevy_rapier2d::prelude::*;
 
 use crate::AppState;
@@ -37,7 +37,7 @@ fn spawn_butterfly(
 ) {
     let texture_handle = asset_server.load("textures/butterfly.png");
     let texture_atlas =
-        TextureAtlasLayout::from_grid(Vec2::new(70.0, 65.0), 13, 7, None, None);
+        TextureAtlasLayout::from_grid(UVec2::new(70, 65), 13, 7, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     let animation_indices = AnimationIndices { first: 0, last: 86 };
     let scale = Vec3 {
@@ -48,13 +48,12 @@ fn spawn_butterfly(
 
     commands.spawn((
         Butterfly {},
-        SpriteSheetBundle {
-            atlas: TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
-            sprite: Sprite::default(),
-            transform: Transform::from_xyz(0., 0., 0.).with_scale(scale),
+        SpriteBundle {
             texture: texture_handle,
-            ..Default::default()
+            transform: Transform::from_xyz(0., 0., 0.).with_scale(scale),
+            ..default()
         },
+        TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
         animation_indices,
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         Direction::Up,
