@@ -1,9 +1,10 @@
-FROM rust:latest as builder
+FROM rust:latest AS builder
 
 RUN cargo install wasm-pack
 COPY src /app/src
 COPY Cargo.toml /app/Cargo.toml
 
+ENV RUSTFLAGS='--cfg getrandom_backend="wasm_js"'
 RUN cd /app && wasm-pack build --target web
 
 FROM node

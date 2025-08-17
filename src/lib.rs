@@ -40,24 +40,25 @@ pub fn run() {
             .set(LogPlugin {
                 filter: "info,wgpu_core=warn,wgpu_hal=warn,gamejam2024=debug".into(),
                 level: bevy::log::Level::DEBUG,
+                ..default()
             })
             .set(ImagePlugin::default_nearest()),
     )
-    .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+    .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.04)))
     .insert_resource(PlayerControls {
         controls: vec![
             KeyBindings {
-                left: KeyCode::A,
-                right: KeyCode::D,
-                jump: KeyCode::W,
-                shoot: KeyCode::C,
-                powerup: KeyCode::V,
-                butterfly: KeyCode::B,
+                left: KeyCode::KeyA,
+                right: KeyCode::KeyD,
+                jump: KeyCode::KeyW,
+                shoot: KeyCode::KeyC,
+                powerup: KeyCode::KeyV,
+                butterfly: KeyCode::KeyB,
             },
             KeyBindings {
-                left: KeyCode::Left,
-                right: KeyCode::Right,
-                jump: KeyCode::Up,
+                left: KeyCode::ArrowLeft,
+                right: KeyCode::ArrowRight,
+                jump: KeyCode::ArrowUp,
                 shoot: KeyCode::Comma,
                 powerup: KeyCode::Period,
                 butterfly: KeyCode::Slash,
@@ -65,6 +66,6 @@ pub fn run() {
         ],
     })
     .add_plugins((GamePlugin, MenuPlugin))
-    .add_state::<AppState>()
+    .init_state::<AppState>()
     .run();
 }

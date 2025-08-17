@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -10,9 +11,9 @@ use crate::AppState;
 
 use super::MapDescription;
 use super::{
-    butterfly::ButterflyEvent, reflections::ReflectionEvent, AnimationIndices, AnimationTimer,
+    butterfly::ButterflyEvent, reflections::{ReflectionEvent, InversionEvent}, AnimationIndices, AnimationTimer,
     BulletFiredEvent, DeathZone, DespawnOnRestart, GameDirection, KeyBindings, Mirror, MirrorType,
-    Platform, Player, PlayerControls, PowerupState,
+    Platform, Player, PlayerControls, PowerupType, PowerupState, RoundMirror
 };
 
 pub struct PlayerPlugin;
@@ -25,9 +26,9 @@ pub struct GameOverEvent {
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GameOverEvent>()
-            .add_event::<MirrorSpawnEvent>()
+            .add_event::<TargetIndicatorSpawnEvent>()
             .add_event::<PlayerSpawnEvent>()
-            .add_event::<MirrorUseEvent>()
+            .add_event::<PowerupApplyEffect>()
             .add_systems(OnEnter(AppState::InGame), spawn_players)
             .add_systems(
                 Update,
@@ -40,7 +41,7 @@ impl Plugin for PlayerPlugin {
                         animate_sprite,
                         draw_mirrors,
                         spawn_mirror,
-                        use_mirror,
+                        apply_powerups,
                     )
                         .run_if(in_state(AppState::InGame)),
                 ),
@@ -53,22 +54,22 @@ fn animate_sprite(
     mut query: Query<(
         &AnimationIndices,
         &mut AnimationTimer,
-        &mut TextureAtlasSprite,
+        &mut TextureAtlas,
         &Player,
     )>,
 ) {
-    for (indices, mut timer, mut sprite, player) in &mut query {
+    for (indices, mut timer, mut atlas, player) in &mut query {
         if player.is_running {
             timer.tick(time.delta());
             if timer.just_finished() {
-                sprite.index = if sprite.index == indices.last {
+                atlas.index = if atlas.index == indices.last {
                     indices.first
                 } else {
-                    sprite.index + 1
+                    atlas.index + 1
                 };
             }
         } else {
-            sprite.index = 0;
+            atlas.index = 0;
         }
     }
 }
@@ -76,7 +77,7 @@ fn animate_sprite(
 pub fn spawn_players(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     mut spawn_event_sender: EventWriter<PlayerSpawnEvent>,
     controls: Res<PlayerControls>,
 ) {
@@ -115,13 +116,13 @@ fn spawn_player(
     texture: String,
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlasLayout>>,
     key_bindings: KeyBindings,
     spawn_event_sender: &mut EventWriter<PlayerSpawnEvent>,
 ) {
     let texture_handle = asset_server.load(texture);
     let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1, None, None);
+        TextureAtlasLayout::from_grid(UVec2::new(24, 24), 7, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     // Use only the subset of sprites in the sheet that make up the run animation
     let animation_indices = AnimationIndices { first: 1, last: 6 };
@@ -132,10 +133,10 @@ fn spawn_player(
     };
 
     let entity = commands.spawn((
-        SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle,
-            sprite: TextureAtlasSprite::new(animation_indices.first),
+        TextureAtlas { layout: texture_atlas_handle, index: animation_indices.first },
+        SpriteBundle {
             transform: position.with_scale(scale),
+            texture: texture_handle,
             ..Default::default()
         },
         animation_indices,
@@ -168,7 +169,7 @@ fn spawn_player(
     spawn_event_sender.send(PlayerSpawnEvent {
         player_id,
         player: entity.id(),
-    })
+    });
 }
 
 fn camera_follow_players(
@@ -204,7 +205,7 @@ fn camera_follow_players(
 pub fn player_go_left(
     player: &mut Player,
     velocity: &mut Velocity,
-    sprite: &mut TextureAtlasSprite,
+    sprite: &mut Sprite,
 ) {
     if velocity.linvel.x > -player.speed {
         velocity.linvel += Vec2::new(-player.speed * 0.2, 0.);
@@ -218,7 +219,7 @@ pub fn player_go_left(
 pub fn player_go_right(
     player: &mut Player,
     velocity: &mut Velocity,
-    sprite: &mut TextureAtlasSprite,
+    sprite: &mut Sprite,
 ) {
     if velocity.linvel.x < player.speed {
         velocity.linvel += Vec2::new(player.speed * 0.2, 0.);
@@ -287,23 +288,24 @@ pub fn player_shoot(
 pub fn player_powerup_press(
     player: &mut Player,
     player_entity: Entity,
-    send_mirror_spawn_event: &mut EventWriter<MirrorSpawnEvent>,
+    send_indicator_spawn_event: &mut EventWriter<TargetIndicatorSpawnEvent>,
 ) {
     player.powerup = if let Some(powerup) = &player.powerup {
         debug!("Powerup activated");
         match powerup {
-            PowerupState::Mirror {
-                r#type,
+            PowerupState {
+                powerup_t,
                 placed: false,
             } => {
-                send_mirror_spawn_event.send(MirrorSpawnEvent {
+                send_indicator_spawn_event.send(TargetIndicatorSpawnEvent {
+                    powerup_t: *powerup_t,
                     owner: player_entity,
                 });
-                Some(PowerupState::Mirror {
-                    r#type: *r#type,
+                Some(PowerupState {
+                    powerup_t: *powerup_t,
                     placed: true,
                 })
-            }
+            },
             state => Some(*state),
         }
     } else {
@@ -314,18 +316,18 @@ pub fn player_powerup_press(
 pub fn player_powerup_release(
     player: &mut Player,
     player_entity: Entity,
-    send_mirror_use_event: &mut EventWriter<MirrorUseEvent>,
+    send_powerup_apply_effect: &mut EventWriter<PowerupApplyEffect>,
 ) {
     player.powerup = if let Some(powerup) = player.powerup {
         debug!("Powerup released");
         match powerup {
-            PowerupState::Mirror {
-                r#type,
+            PowerupState {
+                powerup_t,
                 placed: true,
             } => {
-                send_mirror_use_event.send(MirrorUseEvent {
+                send_powerup_apply_effect.send(PowerupApplyEffect {
                     owner: player_entity,
-                    mirror_type: r#type,
+                    powerup_t: powerup_t,
                 });
                 None
             }
@@ -337,92 +339,160 @@ pub fn player_powerup_release(
 }
 
 #[derive(Event)]
-pub struct MirrorUseEvent {
+pub struct PowerupApplyEffect {
     pub owner: Entity,
-    pub mirror_type: MirrorType,
+    pub powerup_t: PowerupType,
 }
 
 #[derive(Event)]
-pub struct MirrorSpawnEvent {
+pub struct TargetIndicatorSpawnEvent {
     pub owner: Entity,
+    pub powerup_t: PowerupType,
 }
 
-fn use_mirror(
+fn apply_powerups(
     mut commands: Commands,
-    mut events: EventReader<MirrorUseEvent>,
+    mut events: EventReader<PowerupApplyEffect>,
     mut reflection_events_send: EventWriter<ReflectionEvent>,
+    mut inversion_events_send: EventWriter<InversionEvent>,
     mirrors: Query<(Entity, &Mirror)>,
+    round_mirrors: Query<(Entity, &RoundMirror)>,
 ) {
-    for MirrorUseEvent { owner, mirror_type } in events.read() {
-        for (entity, mirror) in mirrors.iter().filter(|(_, mirror)| mirror.owner == *owner) {
-            reflection_events_send.send(ReflectionEvent {
-                mirror_type: *mirror_type,
-                mirror: mirror.get_line(),
-            });
-            commands.entity(entity).despawn();
+    for PowerupApplyEffect { owner, powerup_t } in events.read() {
+        if let PowerupType::Mirror(mirror_type) = powerup_t
+        {
+            for (entity, mirror) in mirrors.iter().filter(|(_, mirror)| mirror.owner == *owner) {
+                reflection_events_send.send(ReflectionEvent {
+                    mirror_type: *mirror_type,
+                    mirror: mirror.get_line(),
+                });
+                commands.entity(entity).despawn();
+            }
+        }
+        if let PowerupType::Inversion(inversion_type) = powerup_t
+        {
+            for (entity, round_mirror) in round_mirrors.iter().filter(|(_, round_mirror)| round_mirror.owner == *owner) {
+                inversion_events_send.send(InversionEvent {
+                    inversion_type: *inversion_type,
+                    circle: round_mirror.get_circle(),
+                    angs: round_mirror.get_angs(),
+                });
+                commands.entity(round_mirror.center_marker).despawn();
+                commands.entity(entity).despawn();
+            }
         }
     }
 }
 
 fn spawn_mirror(
     mut commands: Commands,
-    mut events: EventReader<MirrorSpawnEvent>,
+    mut events: EventReader<TargetIndicatorSpawnEvent>,
     players: Query<&Transform>,
     asset_server: Res<AssetServer>,
 ) {
-    for MirrorSpawnEvent { owner } in events.read() {
+    for TargetIndicatorSpawnEvent { owner, powerup_t } in events.read() {
         if let Ok(transform) = players.get(*owner) {
-            commands.spawn((
-                SpriteBundle {
-                    texture: asset_server.load("textures/mirror.png"),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(0.7, 1.5)),
+            if let PowerupType::Mirror(_) = *powerup_t
+            {
+                commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/mirror.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(0.7, 1.5)),
+                            ..default()
+                        },
                         ..default()
                     },
-                    ..default()
-                },
-                Mirror {
-                    owner: *owner,
-                    time: Stopwatch::new(),
-                    position: transform.translation.xy(),
-                },
-                DespawnOnRestart {},
-            ));
+                    Mirror {
+                        owner: *owner,
+                        time: Stopwatch::new(),
+                        position: transform.translation.xy(),
+                    },
+                    DespawnOnRestart {},
+                ));
+            }
+            else if let PowerupType::Inversion(_) = *powerup_t
+            {
+                let center_marker = commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/round_mirror_center.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(1.0, 1.0)),
+                            ..default()
+                        },
+                        transform: Transform::from_translation(transform.translation.xy().extend(0.0)),
+                        ..default()
+                    },
+                    DespawnOnRestart {},
+                )).id();
+                commands.spawn((
+                    SpriteBundle {
+                        texture: asset_server.load("textures/round_mirror.png"),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(1.4, 1.5)),
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    RoundMirror {
+                        owner: *owner,
+                        time: Stopwatch::new(),
+                        center: transform.translation.xy(),
+                        ang: PI / 6.0,
+                        center_marker,
+                        radius: 8.0
+                    },
+                    DespawnOnRestart {},
+                ));
+            }
         }
     }
 }
 
 fn draw_mirrors(
-    mut mirrors: Query<(&mut Mirror, &mut Transform), Without<Player>>,
+    mut mirrors: Query<(&mut Mirror, &mut Transform), (Without<Player>, Without<RoundMirror>)>,
+    mut round_mirrors: Query<(&mut RoundMirror, &mut Transform), (Without<Player>, Without<Mirror>)>,
     time: Res<Time>,
 ) {
     for (mut mirror, mut transform) in mirrors.iter_mut() {
         mirror.time.tick(time.delta());
-        let mirror = mirror.get_line();
+        let mirror_line = mirror.get_line();
 
-        transform.translation = mirror.mid_point().extend(0.0);
+        transform.translation = mirror_line.mid_point().extend(0.0);
         transform.rotation = Quat::from_axis_angle(
             Vec3::Z,
-            Vec2::new(0.0, 1.0).angle_between(mirror.get_line().direction()),
+            Vec2::new(0.0, 1.0).angle_between(mirror_line.get_line().direction()),
         );
-        transform.scale = Vec3::new(1.0, mirror.length(), 1.0);
+        transform.scale = Vec3::new(1.0, mirror_line.length(), 1.0);
+    }
+
+    for (mut round_mirror, mut transform) in round_mirrors.iter_mut() {
+        round_mirror.time.tick(time.delta());
+        let mirror_line = round_mirror.get_mirror_line();
+
+        transform.translation = mirror_line.mid_point().extend(0.0);
+        transform.rotation = Quat::from_axis_angle(
+            Vec3::Z,
+            Vec2::new(0.0, 1.0).angle_between(mirror_line.get_line().direction()),
+        );
+        transform.scale = Vec3::new(1.0, mirror_line.length(), 1.0);
     }
 }
 
 pub fn player_controller(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut players: Query<(
         Entity,
         &mut Player,
         &mut Velocity,
         &mut Transform,
-        &mut TextureAtlasSprite,
+        &mut Sprite,
     )>,
     mut send_fire_event: EventWriter<BulletFiredEvent>,
     time: Res<Time>,
     mut app_state: ResMut<NextState<AppState>>,
-    mut send_mirror_use_event: EventWriter<MirrorUseEvent>,
-    mut send_mirror_spawn_event: EventWriter<MirrorSpawnEvent>,
+    mut send_mirror_use_event: EventWriter<PowerupApplyEffect>,
+    mut send_mirror_spawn_event: EventWriter<TargetIndicatorSpawnEvent>,
     mut send_butterfly_event: EventWriter<ButterflyEvent>,
 ) {
     for (entity, mut player, mut velocity, mut transform, mut sprite) in players.iter_mut() {
@@ -450,7 +520,7 @@ pub fn player_controller(
             player_powerup_release(&mut player, entity, &mut send_mirror_use_event)
         }
     }
-    if keyboard_input.just_pressed(KeyCode::R) {
+    if keyboard_input.just_pressed(KeyCode::KeyR) {
         app_state.set(AppState::MainMenu);
     }
 }
@@ -484,7 +554,7 @@ fn check_death_collision(
         if transform.translation.y < map.death_zone {
             send_game_over_event.send(GameOverEvent {
                 lost_player: player.id,
-            })
+            });
         }
     }
     // for contact_event in contact_events.read() {
@@ -500,11 +570,4 @@ fn check_death_collision(
     //         }
     //     }
     // }
-}
-
-fn reflect_player_through_point(mut transform: Transform, reflection_point: Transform) {
-    let pos = transform.translation;
-    let reflection_pos = reflection_point.translation;
-    let new_pos = reflection_pos + reflection_pos - pos;
-    transform = transform.with_translation(new_pos);
 }

@@ -27,7 +27,7 @@ use bevy::{
         ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor,
     },
 };
-use bevy_rapier2d::prelude::*;
+use bevy_rapier2d::{prelude::*, rapier};
 
 use crate::AppState;
 
@@ -59,7 +59,7 @@ impl Plugin for GamePlugin {
 
 fn wait_for_restart(
     mut app_state: ResMut<NextState<AppState>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard_input.get_just_pressed().next().is_some() {
         app_state.set(AppState::MainMenu);
@@ -122,15 +122,15 @@ fn setup(
     let floor_texture: Handle<Image> =
         asset_server.load_with_settings("textures/grass.png", settings);
 
-    commands.insert_resource(RapierConfiguration {
-        gravity: Vec2 { x: 0.0, y: -70.0 },
-        ..Default::default()
-    });
+    let mut rapier_config = RapierConfiguration::new(1.0);
+    rapier_config.gravity = Vec2 { x: 0.0, y: -70.0 };
+    commands.insert_resource(rapier_config);
+
     commands.insert_resource(Materials {
-        player_material: Color::rgb(0.969, 0.769, 0.784).into(),
-        floor_material: materials.add(floor_texture.into()),
-        death_zone_material: Color::rgb(0.5, 0.0, 0.).into(),
-        bullet_material: Color::rgb(0.8, 0.8, 0.).into(),
+        player_material: Color::srgb(0.969, 0.769, 0.784).into(),
+        floor_material: materials.add(floor_texture),
+        death_zone_material: Color::srgb(0.5, 0.0, 0.).into(),
+        bullet_material: Color::srgb(0.8, 0.8, 0.).into(),
     });
     commands.insert_resource(get_map1());
     commands.spawn(new_camera_2d());

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::ui::ContentSize;
-use bevy::{app::Plugin, ecs::schedule::OnEnter};
+use bevy::{app::Plugin};
 
 use crate::game::{PlayerAction, PlayerControls};
 use crate::AppState;
@@ -97,7 +97,7 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
                                     align_items: AlignItems::Center,
                                     ..default()
                                 },
-                                background_color: Color::BLUE.into(),
+                                background_color: Color::Srgba(Srgba::BLUE).into(),
                                 ..default()
                             },
                             MenuButtonAction::Play,
@@ -196,13 +196,13 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
                                                                     JustifyContent::Center,
                                                                 ..default()
                                                             },
-                                                            border_color: Color::RED.into(),
+                                                            border_color: Color::Srgba(Srgba::RED).into(),
                                                             ..default()
                                                         })
                                                         .with_children(|parrent| {
                                                             parrent
                                                                 .spawn((ButtonBundle {
-                                                                    background_color: Color::GRAY
+                                                                    background_color: Color::Srgba(Srgba::gray(0.5))
                                                                         .into(),
                                                                     style: Style {
                                                                         width: Val::Auto,
@@ -242,7 +242,7 @@ fn main_menu_setup(mut commands: Commands, controls: Res<PlayerControls>) {
 }
 
 fn menu_action(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
@@ -258,7 +258,7 @@ fn menu_action(
             match *menu_button_action {
                 MenuButtonAction::Play => app_state.set(AppState::InGame),
                 MenuButtonAction::SelectKeyBinding { player, action } => {
-                    select_key_binding_send.send(SelectKeyBinding { player, action })
+                    select_key_binding_send.send(SelectKeyBinding { player, action });
                 }
             }
         }
@@ -275,9 +275,9 @@ fn menu_action(
 
 fn set_key_binding_button_highlighting(mut background_color: Mut<BackgroundColor>, selected: bool) {
     if selected {
-        background_color.0 = Color::BLUE;
+        background_color.0 = Color::Srgba(Srgba::BLUE);
     } else {
-        background_color.0 = Color::GRAY;
+        background_color.0 = Color::Srgba(Srgba::gray(0.5));
     }
 }
 

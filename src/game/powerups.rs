@@ -6,13 +6,14 @@ use bevy_rapier2d::{
     pipeline::CollisionEvent,
 };
 use rand::prelude::*;
+use rand::rng;
 
 use crate::{
-    game::{DespawnOnRestart, LifeTimer, MirrorType},
+    game::{InversionType, DespawnOnRestart, LifeTimer, MirrorType},
     AppState,
 };
 
-use super::{Player, PlayerSpawnEvent, Powerup, PowerupState};
+use super::{Player, PlayerSpawnEvent, Powerup, PowerupType, PowerupState};
 
 pub struct PowerupsPlugin;
 
@@ -26,7 +27,7 @@ impl Plugin for PowerupsPlugin {
             )
             .add_systems(
                 Update,
-                check_powerup_color.run_if(in_state(AppState::InGame)),
+                check_powerup_tracker.run_if(in_state(AppState::InGame)),
             )
             .add_systems(
                 Update,
@@ -47,6 +48,34 @@ impl Plugin for PowerupsPlugin {
     }
 }
 
+fn generate_powerup_type(rng: &mut ThreadRng) -> PowerupType {
+    if rng.random_bool(0.35) {
+        let inversion_type = InversionType {
+            reflect_players: rng.random_bool(0.5),
+            reflect_platforms: rng.random_bool(0.5),
+        };
+        if inversion_type.reflect_platforms || inversion_type.reflect_players {
+            PowerupType::Inversion(inversion_type)
+        } else {
+            generate_powerup_type(rng)
+        }
+    } else {
+        let mirror_type = MirrorType {
+            reflect_players: rng.random_bool(0.5),
+            reflect_platforms: rng.random_bool(0.5),
+            reflect_bullets: rng.random_bool(0.5),
+        };
+        if mirror_type.reflect_platforms
+            || mirror_type.reflect_players
+            || (mirror_type.reflect_bullets && rng.random_bool(0.5))
+        {
+            PowerupType::Mirror(mirror_type)
+        } else {
+            generate_powerup_type(rng)
+        }
+    }
+}
+
 #[derive(Event)]
 struct PowerupSpawnEvent {}
 
@@ -64,16 +93,16 @@ fn spawn_powerup(
     time: Res<Time>,
 ) {
     for _ in powerup_event.read() {
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
-        let x = POWERUP_XMIN + rng.gen::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
-        let y = POWERUP_YMIN + rng.gen::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
+        let x = POWERUP_XMIN + rng.random::<f32>() * (POWERUP_XMAX - POWERUP_XMIN);
+        let y = POWERUP_YMIN + rng.random::<f32>() * (POWERUP_YMAX - POWERUP_YMIN);
 
         let mover = PowerupMover {
-            speed: 0.25 + 1.5 * rng.gen::<f32>(),
-            scale: 1.5 + 3.0 * rng.gen::<f32>(),
+            speed: 0.25 + 1.5 * rng.random::<f32>(),
+            scale: 1.5 + 3.0 * rng.random::<f32>(),
             offset: Vec2 { x, y },
-            shape: match rng.gen_range(0..4) {
+            shape: match rng.random_range(0..4) {
                 0 => Shape::Circle,
                 1 => Shape::Infinity,
                 2 => Shape::Horizontal,
@@ -82,14 +111,12 @@ fn spawn_powerup(
             },
         };
 
-        info!("Spawning Powerup at {:?} {:?}", x, y);
-
-        let reflections = thread_rng().gen_range(1..8);
+        let powerup_type: PowerupType = generate_powerup_type(&mut rng);
 
         commands.spawn((
             MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(0.5).into()).into(),
-                material: materials.add(asset_server.load("textures/orb.png").into()),
+                mesh: meshes.add(Circle::new(0.5)).into(),
+                material: materials.add(asset_server.load("textures/orb.png")),
                 transform: Transform::from_translation(
                     mover.get_position(time.elapsed_seconds()).extend(0.0),
                 ),
@@ -99,11 +126,7 @@ fn spawn_powerup(
             ActiveEvents::COLLISION_EVENTS,
             DespawnOnRestart {},
             LifeTimer(Timer::from_seconds(10.0, TimerMode::Once)),
-            Powerup::Mirror(MirrorType {
-                reflect_bullets: (reflections & 1) > 0,
-                reflect_players: (reflections & 2) > 0,
-                reflect_platforms: (reflections & 4) > 0,
-            }),
+            Powerup { powerup_type },
             mover,
         ));
     }
@@ -131,8 +154,12 @@ fn handle_powerup_collection(
                 commands.entity(*powerup_entity).despawn();
 
                 player.powerup = Some(match *powerup {
-                    Powerup::Mirror(mirror_type) => PowerupState::Mirror {
-                        r#type: mirror_type,
+                    Powerup { powerup_type: PowerupType::Mirror(mirror_type) } => PowerupState {
+                        powerup_t: PowerupType::Mirror(mirror_type),
+                        placed: false,
+                    },
+                    Powerup { powerup_type: PowerupType::Inversion(inversion_type) } => PowerupState {
+                        powerup_t: PowerupType::Inversion(inversion_type),
                         placed: false,
                     },
                 });
@@ -169,8 +196,8 @@ fn check_powerup_spawn(
 ) {
     let count = active_powerups.iter().len();
 
-    if random::<f32>() < POWERUP_PROBABILITY * (0.6 as f32).powi(count as i32) {
-        spawn_event.send(PowerupSpawnEvent {})
+    if rng().random::<f32>() < POWERUP_PROBABILITY * (0.6 as f32).powi(count as i32) {
+        spawn_event.send(PowerupSpawnEvent {});
     }
 }
 
@@ -182,24 +209,40 @@ struct PowerupTracker {
 fn get_powerup_color(state: Option<PowerupState>) -> Color {
     match state {
         None => Color::NONE,
-        Some(PowerupState::Mirror { r#type, .. }) => Color::Rgba {
-            red: if r#type.reflect_bullets { 0.6 } else { 0.0 },
-            green: if r#type.reflect_platforms { 0.8 } else { 0.0 },
-            blue: if r#type.reflect_players { 0.8 } else { 0.0 },
-            alpha: 1.0,
-        },
+        Some(PowerupState { powerup_t: PowerupType::Mirror(r#type), .. }) => Color::srgba(
+            if r#type.reflect_bullets { 0.6 } else { 0.0 },
+            if r#type.reflect_platforms { 0.8 } else { 0.0 },
+            if r#type.reflect_players { 0.8 } else { 0.0 },
+            1.0,
+        ),
+        Some(PowerupState { powerup_t: PowerupType::Inversion(r#type), .. }) => Color::srgba(
+            0.0,
+            if r#type.reflect_platforms { 0.8 } else { 0.0 },
+            if r#type.reflect_players { 0.8 } else { 0.0 },
+            1.0,
+        ),
     }
 }
 
-fn check_powerup_color(
-    mut query: Query<(&mut BackgroundColor, &PowerupTracker)>,
+fn check_powerup_tracker(
+    mut query: Query<(&mut BackgroundColor, &mut BorderRadius, &PowerupTracker)>,
     players: Query<&Player>,
 ) {
-    query.for_each_mut(|(mut color, powerup_tracker)| {
-        if let Ok(player) = players.get(powerup_tracker.player) {
-            color.0 = get_powerup_color(player.powerup);
-        }
-    });
+    query
+        .iter_mut()
+        .for_each(|(mut color, mut border_radius, powerup_tracker)| {
+            if let Ok(player) = players.get(powerup_tracker.player) {
+                color.0 = get_powerup_color(player.powerup);
+                border_radius
+                    .set(Box::new(BorderRadius::all(Val::Percent(
+                        match player.powerup {
+                            Some(PowerupState { powerup_t: PowerupType::Inversion(..), .. }) => 50.0,
+                            _ => 0.0,
+                        },
+                    ))))
+                    .expect("Can't use set");
+            }
+        });
 }
 
 fn spawn_powerup_trackers(
@@ -227,6 +270,7 @@ fn spawn_powerup_trackers(
             NodeBundle {
                 style,
                 background_color: Color::NONE.into(),
+                border_radius: BorderRadius::all(Val::Percent(0.0)),
                 ..default()
             },
             PowerupTracker { player: *player },
@@ -270,7 +314,7 @@ impl PowerupMover {
 }
 
 fn move_powerups(mut powerups: Query<(&mut Transform, &PowerupMover)>, time: Res<Time>) {
-    powerups.for_each_mut(|(mut transform, mover)| {
+    powerups.iter_mut().for_each(|(mut transform, mover)| {
         transform.translation = mover.get_position(time.elapsed_seconds()).extend(0.0)
     });
 }
