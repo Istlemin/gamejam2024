@@ -6,7 +6,6 @@
 ```rs
 cargo run
 ```
-(doesn't work)
 
 ## Building and Running for the Web
 
